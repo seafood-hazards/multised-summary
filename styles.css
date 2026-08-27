@@ -27,9 +27,11 @@
 table { font-size: .93rem; }
 th { white-space: nowrap; }
 
-/* Tall enough that a fit to the data's latitude range does not have to zoom
-   out so far that half the frame is Greenland and Asia. */
-#map { height: 560px; border-radius: .4rem; border: 1px solid #ddd; }
+/* Tall enough to hold the full latitude range of the data at zoom 3. Mercator
+   stretches the far north, so 36 to 81 degrees needs about 630 px of map at that
+   zoom; a shorter box drops to zoom 2, which shows Africa and Asia and still cuts
+   Svalbard off the top. */
+#map { height: 700px; border-radius: .4rem; border: 1px solid #ddd; }
 
 /* Reset-view button on the element maps. Leaflet styles its own controls, but a
    custom one gets none of it, so it is dressed to match the zoom buttons above. */
