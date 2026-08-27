@@ -129,12 +129,14 @@ e_bg |>
 #| output: asis
 #| eval: !expr any(e_rows$has_verdict)
 cat("## Pristine verdict\n\n",
-    "A sample is judged against its own grain size, using aluminium. ",
-    "The permissive rule is a single test; the strict rule requires three ",
-    "independent criteria to agree.\n\n",
-    "Only bulk sediment is listed. A sieved sample has already been grain-size ",
-    "corrected by the sieve, so aluminium has nothing left to correct: see ",
-    "[Estimation of Pristine Sediment](methods-pristine.qmd#and-in-bulk-sediment-only)",
+    "A sample is judged against its own grain size. How that is controlled differs ",
+    "by fraction: bulk sediment is corrected using aluminium, and a sieved sample ",
+    "was corrected by the sieve before it was analysed. So the permissive rule, ",
+    "which is the aluminium test alone, applies to bulk sediment only. The strict ",
+    "rule asks every criterion that applies to the fraction to agree, and is ",
+    "reported for both. A blank in the permissive column is a definition rather ",
+    "than a gap: see ",
+    "[Estimation of Pristine Sediment](methods-pristine.qmd#the-sieved-samples-are-judged-on-the-sieve)",
     ".\n\n", sep = "")
 ```
 
@@ -146,7 +148,8 @@ e_vd |>
             Measurements = format(n, big.mark = "\u00a0"),
             `Can be judged` = sprintf("%s%% (%s)", pct_classifiable,
                                       format(n_classifiable, big.mark = "\u00a0")),
-            `Pristine, permissive` = sprintf("%s%%", pct_ef),
+            `Pristine, permissive` = ifelse(is.na(pct_ef), "",
+                                            sprintf("%s%%", pct_ef)),
             `Pristine, strict` = sprintf("%s%%", pct_strict)) |>
   kable()
 ```

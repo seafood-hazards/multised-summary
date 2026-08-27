@@ -11,6 +11,8 @@
 # links to the multised-refined release, which is where they are published; this
 # site does not host a second copy that could go stale.
 summary_elements.csv
+summary_reference.csv
+summary_sea_spread.csv
 summary_background.csv
 summary_verdicts.csv
 summary_coverage.csv
