@@ -103,8 +103,8 @@ controls |>
   filter(symbol == "CU", cat == "bulk", reliable) |>
   transmute(Control = control,
             `What it holds constant` = holds,
-            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = " "),
-                                           format(n_far, big.mark = " ")),
+            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = "\u00a0"),
+                                           format(n_far, big.mark = "\u00a0")),
             `Copper near vs far` = detail) |>
   kable()
 ```

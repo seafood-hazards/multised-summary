@@ -13,9 +13,9 @@ quality conventions. None of them was designed to be combined with the others.
 ```{r}
 sources |>
   transmute(Source = source,
-            Measurements = format(n, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
             `Share` = sprintf("%.1f%%", pct),
-            Sites = format(n_sites, big.mark = " "),
+            Sites = format(n_sites, big.mark = "\u00a0"),
             Datasets = n_datasets,
             Elements = n_elements,
             Years = paste0(year_min, " to ", year_max)) |>
@@ -46,8 +46,8 @@ step_label <- c(slim = "2. Harmonise", clean = "3. Clean", merged = "4. Merge",
                 refined = "5. Refine", analysed = "Reported on this site")
 flow |>
   transmute(Step = step_label[stage],
-            Measurements = format(n, big.mark = " "),
-            Sites = format(n_sites, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
+            Sites = format(n_sites, big.mark = "\u00a0"),
             `What happens` = what) |>
   kable()
 ```
@@ -85,6 +85,11 @@ sample and a bulk sample from the same seabed give different numbers for the sam
 sediment. Every result on this site is reported separately for bulk, for the
 fraction below 63 um and for the fraction below 20 um, and no average is ever taken
 across them.
+
+One consequence is worth knowing early: the pristine verdict is issued for bulk
+sediment only, because a sieved sample is already grain-size corrected and cannot
+be corrected again. See
+[Estimation of Pristine Sediment](methods-pristine.qmd#and-in-bulk-sediment-only).
 :::
 
 Full detail: [database schema](`r REFINED`/db-schema-refined.html) and the

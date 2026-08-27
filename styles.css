@@ -27,4 +27,23 @@
 table { font-size: .93rem; }
 th { white-space: nowrap; }
 
-#map { height: 460px; border-radius: .4rem; border: 1px solid #ddd; }
+/* Tall enough that a fit to the data's latitude range does not have to zoom
+   out so far that half the frame is Greenland and Asia. */
+#map { height: 560px; border-radius: .4rem; border: 1px solid #ddd; }
+
+/* Reset-view button on the element maps. Leaflet styles its own controls, but a
+   custom one gets none of it, so it is dressed to match the zoom buttons above. */
+.leaflet-home-button {
+  background: #fff;
+  border: 2px solid rgba(0, 0, 0, .3);
+  border-radius: 4px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  color: #444; font-size: 15px; cursor: pointer;
+}
+.leaflet-home-button:hover { background: #f4f4f4; color: #000; }
+
+/* Mermaid diagrams are the argument on several pages, so they get the full
+   content width rather than whatever intrinsic size the renderer picked. */
+.cell .mermaid-js { text-align: center; }
+.cell .mermaid-js svg { max-width: 100%; height: auto; }

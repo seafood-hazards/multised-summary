@@ -64,6 +64,35 @@ Where aluminium fails, we issue no enrichment factor. The alternative would be t
 divide by something that does not track texture and call the result a grain-size
 control, which would be worse than saying nothing.
 
+## And in bulk sediment only
+
+Every result on this site is reported three times over: once for bulk sediment,
+once for the fraction sieved below 63 um, once for the fraction below 20 um. The
+pristine verdict is the exception, and exists for bulk alone.
+
+It is the same test that decides it. **A sieved sample has already been grain-size
+corrected, by the sieve.** Cut the sample to below 63 or 20 um and most of the
+texture variation is gone before the chemistry starts, leaving aluminium almost
+nothing to track. An enrichment factor built on it would be dividing by noise.
+
+```{r}
+elements |>
+  mutate(Fraction = factor(cat_label[cat], levels = cat_label[cat_order])) |>
+  group_by(Fraction) |>
+  summarise(`Element groups` = n(),
+            `Aluminium predicts the metal` = sum(normalisable),
+            `Verdict issued` = sum(has_verdict),
+            .groups = "drop") |>
+  kable()
+```
+
+Sieved samples are not discarded. Their measurements, their background estimates
+and their contamination classes are all published, the last of these because the
+geo-accumulation index needs no aluminium at all. What a sieved sample does not get
+is a pristine verdict. The maps on the element pages show bulk sediment for the
+related reason: it holds by far the most data, and it is the only fraction the
+verdict speaks about.
+
 ## The verdict, and its cost
 
 Two rules are published. The permissive one is a single test; the strict one
@@ -75,7 +104,7 @@ verdicts |>
   mutate(symbol = factor(symbol, levels = elem_levels)) |>
   arrange(symbol) |>
   transmute(Element = sym_display[as.character(symbol)],
-            Measurements = format(n, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
             `Can be judged` = sprintf("%s%%", pct_classifiable),
             `Judged pristine` = sprintf("%s%%", pct_ef),
             `Pristine, strict rule` = sprintf("%s%%", pct_strict)) |>
