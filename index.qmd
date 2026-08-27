@@ -68,10 +68,11 @@ any result is looked at:
 - An element whose measurements were mostly **below the limit of quantification**
   has no usable background. What survives is an upper tail wearing the name
   background. This removes selenium and molybdenum.
-- A **pristine verdict** needs aluminium to control for grain size, and aluminium
-  only predicts an element for some of them. Where it does not, dividing by it is
-  not a grain-size control, so we publish concentrations and background but issue
-  no verdict.
+- A **pristine verdict** needs the sample's grain size to be controlled. In bulk
+  sediment that is done with aluminium, and aluminium only predicts some of the
+  elements; where it does not, dividing by it is not a grain-size control, so we
+  publish concentrations and background but issue no verdict. Sieved samples were
+  grain-size controlled by the sieve instead, and are judged without aluminium.
 
 ```{r}
 #| output: asis

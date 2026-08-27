@@ -69,13 +69,16 @@ each [release of this repository](https://github.com/seafood-hazards/multised-su
 # _scripts/release-assets.txt so this page cannot quietly fall behind a release
 # that carries a file it does not describe.
 tbl <- data.frame(
-  File = c("summary_elements.csv", "summary_background.csv", "summary_verdicts.csv",
+  File = c("summary_elements.csv", "summary_reference.csv", "summary_sea_spread.csv",
+           "summary_background.csv", "summary_verdicts.csv",
            "summary_coverage.csv", "summary_censoring.csv", "summary_pressure.csv",
            "summary_gradient.csv", "summary_controls.csv", "summary_sources.csv",
            "summary_flow.csv", "summary_map_grid.csv", "summary_map_sites.csv",
            "summary_meta.csv"),
   Contents = c(
     "One row per element and fraction: how much data, and what can be said about it",
+    "What each fraction's offshore reference population actually is: where it sits, how deep, and how little of it lies in the far north",
+    "How far each background moves between seas, with and without aluminium: which grain-size control travels",
     "Every background estimate from every method",
     "Classifiable share and pristine share, per element and fraction",
     "How the classifiable share falls with distance to a fish farm and to the coast",

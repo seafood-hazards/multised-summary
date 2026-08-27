@@ -45,7 +45,11 @@ tab <- elements |>
 kable(tab, escape = FALSE)
 ```
 
-## Why four elements fall short
+## Why some elements fall short
+
+Two questions decide it, and the second one is asked only of bulk sediment: a
+sieved sample was grain-size controlled by the sieve before it was analysed, so it
+never needs aluminium in the first place.
 
 ```{r}
 #| output: asis
@@ -54,15 +58,22 @@ cat("```{mermaid}\n",
     '  S["Seven target<br/>elements"] --> Q1{"Enough measurements<br/>above the detection limit?"}\n',
     '  Q1 -->|"no"| W1["<b>Se, Mo</b><br/>over half deleted<br/>below the LOQ"]\n',
     '  Q1 -->|"too few samples"| W2["<b>I</b><br/>15 measurements<br/>in total"]\n',
-    '  Q1 -->|"yes"| Q2{"Does aluminium<br/>predict it?"}\n',
-    '  Q2 -->|"no"| W3["<b>Mn</b><br/>background only,<br/>no enrichment factor"]\n',
-    '  Q2 -->|"yes"| V["<b>Cu, Zn, Co</b><br/>background and<br/>pristine verdict"]\n',
+    '  Q1 -->|"yes"| Q2{"How is grain size<br/>controlled?"}\n',
+    '  Q2 -->|"sieved: by the sieve"| V2["<b>Cu, Zn, Co, Mn</b><br/>background and<br/>pristine verdict"]\n',
+    '  Q2 -->|"bulk: by aluminium"| Q3{"Does aluminium<br/>predict it?"}\n',
+    '  Q3 -->|"no"| W3["<b>Mn</b><br/>background only,<br/>no enrichment factor"]\n',
+    '  Q3 -->|"yes"| V["<b>Cu, Zn, Co</b><br/>background and<br/>pristine verdict"]\n',
     "  style V fill:#d7ecd9,stroke:#1c5626\n",
+    "  style V2 fill:#d7ecd9,stroke:#1c5626\n",
     "  style W1 fill:#eeeeee,stroke:#888\n",
     "  style W2 fill:#eeeeee,stroke:#888\n",
     "  style W3 fill:#fdf0d0,stroke:#7a5300\n",
     "```\n", sep = "")
 ```
+
+Manganese appears twice on purpose. In bulk it has no verdict because aluminium
+was the grain-size control on offer and it does not work for manganese; in a
+sieved sample the sieve supplies that control, so the question never arises.
 
 Both rules were fixed before any result was inspected, and both are recorded as
 frozen tables in the pipeline rather than recomputed at run time, so they cannot
