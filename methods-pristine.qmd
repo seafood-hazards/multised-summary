@@ -66,13 +66,9 @@ control, which would be worse than saying nothing.
 
 ## And in bulk sediment only
 
-Every result on this site is reported three times over: once for bulk sediment,
-once for the fraction sieved below 63 um, once for the fraction below 20 um. The
-pristine verdict is the exception, and exists for bulk alone.
-
-**It is not a shortage of sieved data.** That is the natural guess and it is wrong.
-The sieved fractions carry thousands of measurements, and thousands of them have an
-aluminium result alongside. The problem is what aluminium does in them.
+The pristine verdict exists for bulk sediment alone, and aluminium is the reason.
+Sieving is itself a grain-size correction, so aluminium is redundant in a sieved
+sample and duly fails the test above. **This is not a shortage of sieved data.**
 
 ```{r}
 pct_expl <- function(r2) ifelse(is.na(r2), NA_character_,
@@ -87,37 +83,64 @@ elements |>
             Fraction,
             `Measurements` = format(n, big.mark = "\u00a0"),
             `Samples with aluminium` = format(al_n, big.mark = "\u00a0"),
-            `Variation aluminium explains` = pct_expl(al_r2),
-            `Verdict issued` = ifelse(has_verdict, "yes", "no")) |>
+            `Variation aluminium explains` = pct_expl(al_r2)) |>
   kable()
 ```
 
-Read the last two columns together. In bulk sediment aluminium accounts for roughly
-half of why one sample holds more copper than another, which is what makes it a
-grain-size control. Sieve the same sediment, and on comparable numbers of samples it
-accounts for a few per cent at most. The rule asks for `r round(100 * smeta$al_r2_limit)`
-per cent before aluminium counts as a control, so none of these is a near miss.
-Dividing by it would not correct anything; it would add noise and call the result a
-correction.
+Sieved copper has thousands of aluminium-paired samples and aluminium explains
+almost nothing in them, against `r pct_expl(elements$al_r2[elements$symbol == "CU" & elements$cat == "bulk"])`
+in bulk. The rule asks for `r round(100 * smeta$al_r2_limit)` per cent.
 
-**The reason is that a sieved sample has already been grain-size corrected, by the
-sieve.** Aluminium is a proxy for how muddy a sample is. Cut a sample down to
-particles below 63 or 20 um and you have removed the mud-versus-sand difference
-yourself, in the laboratory, before the chemistry starts. There is little texture
-variation left for aluminium to track, so the correlation collapses. The normaliser
-has not failed; it has been made redundant by the sample preparation, and what is
-left of it is noise.
+### Then why not judge the sieved samples without aluminium?
 
-A second, rank-based check was run precisely so a low correlation could not be
-blamed on the narrow range of the reference samples. It agrees on every group here.
-Full workings: [Regression Normalisation](`r REFINED`/background-regression.html).
+This is the right question, and the honest answer is that **nothing in the data
+prevents it**. What prevents it is the definition. Our pristine verdict *is* an
+enrichment factor: metal divided by aluminium, against an offshore reference. A
+sieved sample does not need that correction, but it does not have the number
+either, so it falls outside the rule rather than failing it.
 
-Sieved samples are not discarded. Their measurements, their background estimates
-and their contamination classes are all published, the last of these because the
-geo-accumulation index compares concentrations directly and needs no aluminium at
-all. What a sieved sample does not get is a pristine verdict. The maps on the
-element pages show bulk sediment for the related reason: it holds by far the most
-data, and it is the only fraction the verdict speaks about.
+The judgement that does work on a sieved sample, comparing its concentration
+against a background for its own fraction, is already computed and published here
+under a different name, the contamination class.
+
+```{r}
+verdicts |>
+  filter(symbol %in% c("CU", "ZN", "CO"), !is.na(pct_igeo_class0)) |>
+  mutate(symbol = factor(symbol, levels = elem_levels),
+         Fraction = factor(cat_label[cat], levels = cat_label[cat_order])) |>
+  arrange(symbol, Fraction) |>
+  transmute(Element = sym_display[as.character(symbol)],
+            Fraction,
+            Measurements = format(n_igeo, big.mark = "\u00a0"),
+            `Unpolluted (Igeo at or below 0)` = sprintf("%.1f%%", pct_igeo_class0),
+            `Pristine verdict` = ifelse(is.na(pct_ef), "not issued",
+                                        sprintf("%.1f%%", pct_ef))) |>
+  kable()
+```
+
+```{r}
+#| include: false
+sv <- backgrounds |> filter(grepl("sieved", cat), reliable,
+                            symbol %in% c("CU", "ZN", "CO"))
+n_grp <- length(unique(paste(sv$symbol, sv$cat)))
+n_p90 <- sum(sv$method == "offshore_p90")
+n_mix <- sum(sv$method == "mixture")
+```
+
+The strict pristine rule is the enrichment factor plus two concentration criteria,
+and those two survive without aluminium: an offshore 90th percentile exists for
+`r if (n_p90 == n_grp) paste("all", n_grp) else paste(n_p90, "of the", n_grp)`
+sieved groups here, and a distribution-mixture bound for `r n_mix` of them.
+
+::: {.callout-note}
+## An open decision, not a closed one
+
+A concentration-based pristine verdict for the sieved fractions could be built from
+what is already computed. It has not been, because it would be a different test
+wearing the same word: the contamination class is measured against the offshore
+median, and offshore is not the same as clean. Two verdicts that are not comparable
+are worse than one verdict and one clearly labelled contamination class.
+:::
 
 ## The verdict, and its cost
 
