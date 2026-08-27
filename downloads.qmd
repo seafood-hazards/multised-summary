@@ -22,7 +22,7 @@ keyfig(
 ```
 
 **[multised_refined.sqlite](https://github.com/seafood-hazards/multised-refined/releases/latest/download/multised_refined.sqlite)**
-(SQLite, about 22 MB)
+(SQLite, roughly 20 MB)
 
 The full relational database: measurements, sites, sampling events, methods,
 normalisers and the aquaculture register, with every derived flag this site
@@ -34,7 +34,7 @@ Schema and table documentation:
 ## The flat dataset
 
 **[multised_refined_dataset.tsv.gz](https://github.com/seafood-hazards/multised-refined/releases/latest/download/multised_refined_dataset.tsv.gz)**
-(gzipped TSV, about 3 MB)
+(gzipped TSV, a few MB)
 
 One row per measurement with every joined column already attached, plus a column
 dictionary. Use this if you want to open the data in R, Python, or a spreadsheet

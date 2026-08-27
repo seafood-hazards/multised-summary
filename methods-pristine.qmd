@@ -118,8 +118,10 @@ reference |>
             `Typical latitude` = paste0(lat_p50, " degrees north"),
             `Typical depth` = paste0(depth_p50, " m"),
             `Mostly` = top_seas,
-            `Far north (above 60 degrees)` = format(n_north_60, big.mark = "\u00a0")) |>
-  kable()
+            `Far north` = format(n_north, big.mark = "\u00a0")) |>
+  kable(col.names = c("Fraction", "Grain-size control", "Reference samples",
+                      "Typical latitude", "Typical depth", "Mostly",
+                      sprintf("Above %g degrees north", reference$north_cut_deg[1])))
 ```
 
 The bulk background is the deep Norwegian and Barents Sea. The sieved background
