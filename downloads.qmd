@@ -14,8 +14,8 @@ this site: one published copy cannot go stale against another.
 ```{r}
 #| output: asis
 keyfig(
-  list(format(smeta$n_measurement, big.mark = " "), "measurements"),
-  list(format(smeta$n_sites, big.mark = " "), "sites"),
+  list(format(smeta$n_measurement, big.mark = "\u00a0"), "measurements"),
+  list(format(smeta$n_sites, big.mark = "\u00a0"), "sites"),
   list(smeta$n_elements, "target elements"),
   list(smeta$db_modified, "database built")
 )

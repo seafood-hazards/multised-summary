@@ -5,7 +5,7 @@ project:
     - "data/summary/summary_map_sites.csv"
 
 website:
-  title: "multised"
+  title: "multised (summary)"
   description: "Background and pristine trace-element levels in marine sediment"
   navbar:
     search: true
