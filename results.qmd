@@ -18,7 +18,7 @@ keyfig(
   list(n_full, "with a pristine verdict"),
   list(n_part, "with background only"),
   list(n_none, "not reported"),
-  list(format(sum(elements$n), big.mark = " "), "measurements behind it")
+  list(format(sum(elements$n), big.mark = "\u00a0"), "measurements behind it")
 )
 ```
 
@@ -37,8 +37,8 @@ tab <- elements |>
   transmute(Element = sprintf("[%s (%s)](element-%s.qmd)", name,
                               sym_display[as.character(symbol)],
                               tolower(as.character(symbol))),
-            Measurements = format(n, big.mark = " "),
-            Sites = format(sites, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
+            Sites = format(sites, big.mark = "\u00a0"),
             Years = yr,
             Published = chip(cap),
             Why = vapply(as.character(symbol), capability_note, character(1)))

@@ -77,7 +77,7 @@ chip <- function(kind) {
 # Format a number for prose: no scientific notation, sensible significant digits.
 fmt <- function(x, digits = 3) {
   ifelse(is.na(x), "not available",
-         formatC(signif(x, digits), format = "fg", big.mark = " ", drop0trailing = TRUE))
+         formatC(signif(x, digits), format = "fg", big.mark = "\u00a0", drop0trailing = TRUE))
 }
 
 keyfig <- function(...) {

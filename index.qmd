@@ -22,8 +22,8 @@ page links to the corresponding page on the
 #| output: asis
 tot <- flow$n[flow$stage == "analysed"]
 keyfig(
-  list(format(tot, big.mark = " "), "measurements"),
-  list(format(smeta$n_sites, big.mark = " "), "sampling sites"),
+  list(format(tot, big.mark = "\u00a0"), "measurements"),
+  list(format(smeta$n_sites, big.mark = "\u00a0"), "sampling sites"),
   list(nrow(sources), "data sources"),
   list(paste0(min(sources$year_min), " to ", max(sources$year_max)), "years covered"),
   list("3 of 7", "elements with a pristine verdict")
@@ -34,18 +34,20 @@ keyfig(
 
 ```{r}
 #| output: asis
-#| fig-cap: "Five sources become one database."
 # The counts are read from summary_flow.csv, not typed here: the diagram cannot
-# drift away from the databases it describes.
-n <- function(stage) format(flow$n[flow$stage == stage], big.mark = " ")
+# drift away from the databases it describes. Top-to-bottom, not left-to-right:
+# a seven-stage chain laid out sideways is scaled down to fit the page and
+# becomes unreadable.
+n <- function(stage) format(flow$n[flow$stage == stage], big.mark = "\u00a0")
 src <- paste0(sprintf('  %s["%s"] --> S\n', LETTERS[seq_len(nrow(sources))],
                       sources$source), collapse = "")
 cat("```{mermaid}\n",
-    "flowchart LR\n", src,
-    sprintf('  S["Harmonised<br/>%s"] --> Cl["Quality controlled<br/>%s"]\n', n("slim"), n("clean")),
-    sprintf('  Cl --> M["Merged, de-duplicated<br/>%s"]\n', n("merged")),
-    sprintf('  M --> R["Analysis database<br/>%s"]\n', n("refined")),
-    sprintf('  R --> A2["Reported here<br/>%s"]\n', n("analysed")),
+    "flowchart TD\n", src,
+    sprintf('  S["<b>Harmonised</b><br/>%s"] --> Cl["<b>Quality controlled</b><br/>%s"]\n',
+            n("slim"), n("clean")),
+    sprintf('  Cl --> M["<b>Merged, de-duplicated</b><br/>%s"]\n', n("merged")),
+    sprintf('  M --> R["<b>Analysis database</b><br/>%s"]\n', n("refined")),
+    sprintf('  R --> A2["<b>Reported here</b><br/>%s"]\n', n("analysed")),
     '  A2 --> Q1["Background"]\n',
     '  A2 --> Q2["Pristine verdict"]\n',
     "  style A2 fill:#e8f0fe,stroke:#4477AA\n",
@@ -54,6 +56,7 @@ cat("```{mermaid}\n",
     "```\n", sep = "")
 ```
 
+Each box is a database on disk, and each number is the measurements it holds.
 Details: [Data Collection and Preparation](methods-data.qmd).
 
 ## What we can say, element by element
@@ -82,7 +85,7 @@ tab <- elements |>
   transmute(Element = sprintf("[%s (%s)](element-%s.qmd)", name,
                               sym_display[as.character(symbol)],
                               tolower(as.character(symbol))),
-            Measurements = format(n, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
             `What is published` = chip(cap),
             Why = vapply(as.character(symbol), capability_note, character(1)))
 kable(tab, escape = FALSE)

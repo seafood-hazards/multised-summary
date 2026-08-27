@@ -25,8 +25,8 @@ show_controls <- !any(e_rows$withheld) && nrow(e_ct) > 0
 ```{r}
 #| output: asis
 keyfig(
-  list(format(e_rows$n_elem[1], big.mark = " "), "measurements"),
-  list(format(e_rows$n_sites_elem[1], big.mark = " "), "sites"),
+  list(format(e_rows$n_elem[1], big.mark = "\u00a0"), "measurements"),
+  list(format(e_rows$n_sites_elem[1], big.mark = "\u00a0"), "sites"),
   list(paste0(e_rows$year_min_elem[1], " to ", e_rows$year_max_elem[1]), "years"),
   list(paste0(e_rows$n_sources_elem[1], " of ", nrow(sources)), "sources")
 )
@@ -38,8 +38,8 @@ cat(chip(e_cap), " ", capability_note(SYM), "\n\n", sep = "")
 ```{r}
 e_rows |>
   transmute(Fraction = cat_label[cat],
-            Measurements = format(n, big.mark = " "),
-            Sites = format(n_sites, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
+            Sites = format(n_sites, big.mark = "\u00a0"),
             Datasets = n_datasets,
             Sources = n_sources,
             Years = ifelse(is.na(year_min), "-", paste0(year_min, " to ", year_max))) |>
@@ -131,7 +131,11 @@ e_bg |>
 cat("## Pristine verdict\n\n",
     "A sample is judged against its own grain size, using aluminium. ",
     "The permissive rule is a single test; the strict rule requires three ",
-    "independent criteria to agree.\n\n", sep = "")
+    "independent criteria to agree.\n\n",
+    "Only bulk sediment is listed. A sieved sample has already been grain-size ",
+    "corrected by the sieve, so aluminium has nothing left to correct: see ",
+    "[Estimation of Pristine Sediment](methods-pristine.qmd#and-in-bulk-sediment-only)",
+    ".\n\n", sep = "")
 ```
 
 ```{r}
@@ -139,9 +143,9 @@ cat("## Pristine verdict\n\n",
 e_vd |>
   filter(reliable) |>
   transmute(Fraction = cat_label[cat],
-            Measurements = format(n, big.mark = " "),
+            Measurements = format(n, big.mark = "\u00a0"),
             `Can be judged` = sprintf("%s%% (%s)", pct_classifiable,
-                                      format(n_classifiable, big.mark = " ")),
+                                      format(n_classifiable, big.mark = "\u00a0")),
             `Pristine, permissive` = sprintf("%s%%", pct_ef),
             `Pristine, strict` = sprintf("%s%%", pct_strict)) |>
   kable()
@@ -163,7 +167,7 @@ cat("## Contamination classes\n\n",
 e_vd |>
   filter(!is.na(pct_igeo_class0)) |>
   transmute(Fraction = cat_label[cat],
-            Measurements = format(n_igeo, big.mark = " "),
+            Measurements = format(n_igeo, big.mark = "\u00a0"),
             `Unpolluted (Igeo at or below 0)` = sprintf("%s%%", pct_igeo_class0)) |>
   kable()
 ```
@@ -205,8 +209,8 @@ cat("Raw distance bands are confounded: the far band contains monitored pollutio
 e_ct |>
   transmute(Control = control,
             `What it holds constant` = holds,
-            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = " "),
-                                           format(n_far, big.mark = " ")),
+            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = "\u00a0"),
+                                           format(n_far, big.mark = "\u00a0")),
             `Near vs far` = detail) |>
   kable()
 ```
@@ -262,11 +266,48 @@ layer = map_has_igeo ? chosen : "value_p50"
 mapDiv = {
   const div = html`<div id="map"></div>`;
   yield div;
-  const map = L.map(div).setView([64, 8], 4);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap contributors, &copy; CARTO",
+  const map = L.map(div, { zoomControl: true });
+  // CARTO's basemaps now watermark every tile with "API key required", so the
+  // tiles come straight from OpenStreetMap, as they do on the detailed site.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
     maxZoom: 12
   }).addTo(map);
+
+  // The home view is this element's own extent, not a fixed window on Norway.
+  // Copper runs from 36 to 81 north; iodine sits in the Kattegat. The zoom cap
+  // stops a sparse element from opening at street level with no coastline for
+  // context, and the fallback is the extent of the database as a whole.
+  const lats = pts.map(d => d.lat), lons = pts.map(d => d.lon);
+  const home = pts.length
+    ? L.latLngBounds([Math.min(...lats), Math.min(...lons)],
+                     [Math.max(...lats), Math.max(...lons)])
+    : L.latLngBounds([36, -25], [81, 40]);
+  // Fit to the data, then hold the zoom inside 3 to 6. The cap stops a sparse
+  // element opening at street level with no coastline for context. The floor is
+  // there because Mercator stretches the far north: fitting copper's 36 to 81
+  // degrees honestly would open on a world map with Europe as a smudge in the
+  // middle. Three is the zoom the detailed site's maps use.
+  const goHome = () => {
+    map.invalidateSize();
+    map.fitBounds(home, { padding: [24, 24], maxZoom: 6 });
+    if (map.getZoom() < 3) map.setView(home.getCenter(), 3);
+  };
+  goHome();
+
+  const HomeControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd() {
+      const btn = L.DomUtil.create("a", "leaflet-home-button");
+      btn.href = "#";
+      btn.title = "Reset the view";
+      btn.setAttribute("aria-label", "Reset the view");
+      btn.innerHTML = '<i class="bi bi-house-door" aria-hidden="true"></i>';
+      L.DomEvent.on(btn, "click", e => { L.DomEvent.stop(e); goHome(); });
+      return btn;
+    }
+  });
+  new HomeControl().addTo(map);
 
   const vals = pts.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
   if (!vals.length) return;
@@ -299,4 +340,9 @@ mapDiv = {
 
 Each point is a 0.1 degree cell (roughly 11 km), coloured by the median of the
 sites inside it. Cells are summaries: a cell containing both clean and enriched
-sites shows the middle of them.
+sites shows the middle of them. The map opens on the region where this element was
+measured, which differs from element to element; the house button returns to that
+view.
+
+Bulk sediment only. The sieved fractions are measured and published, but they are a
+different material and cannot be drawn on the same colour scale.
