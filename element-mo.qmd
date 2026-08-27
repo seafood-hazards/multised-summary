@@ -1,0 +1,18 @@
+---
+title: "Molybdenum (Mo)"
+subtitle: "Withheld: most measurements fell below the detection limit"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SYM <- "MO"
+```
+
+{{< include _element-body.qmd >}}
+
+---
+
+Full workings for this element are on the
+[detailed analysis site](`r REFINED`).

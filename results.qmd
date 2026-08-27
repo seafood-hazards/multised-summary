@@ -1,0 +1,119 @@
+---
+title: "All elements at a glance"
+subtitle: "What is published for each of the seven, and why"
+---
+
+{{< include _setup.qmd >}}
+
+Seven elements were targeted. Three can be given a full pristine verdict, four
+cannot, and the reason is different in each case. Nothing here is a judgement about
+how interesting an element is: the limits come from the measurements that exist.
+
+```{r}
+#| output: asis
+n_full <- sum(sapply(unique(elements$symbol), capability) == "full")
+n_part <- sum(sapply(unique(elements$symbol), capability) == "partial")
+n_none <- sum(sapply(unique(elements$symbol), capability) == "none")
+keyfig(
+  list(n_full, "with a pristine verdict"),
+  list(n_part, "with background only"),
+  list(n_none, "not reported"),
+  list(format(sum(elements$n), big.mark = " "), "measurements behind it")
+)
+```
+
+## The coverage matrix
+
+```{r}
+#| output: asis
+tab <- elements |>
+  group_by(symbol, name) |>
+  summarise(n = first(n_elem), sites = first(n_sites_elem),
+            cap = capability(first(symbol)),
+            yr = paste0(first(year_min_elem), " to ", first(year_max_elem)),
+            .groups = "drop") |>
+  mutate(symbol = factor(symbol, levels = elem_levels)) |>
+  arrange(symbol) |>
+  transmute(Element = sprintf("[%s (%s)](element-%s.qmd)", name,
+                              sym_display[as.character(symbol)],
+                              tolower(as.character(symbol))),
+            Measurements = format(n, big.mark = " "),
+            Sites = format(sites, big.mark = " "),
+            Years = yr,
+            Published = chip(cap),
+            Why = vapply(as.character(symbol), capability_note, character(1)))
+kable(tab, escape = FALSE)
+```
+
+## Why four elements fall short
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart TD\n",
+    '  S["Seven target<br/>elements"] --> Q1{"Enough measurements<br/>above the detection limit?"}\n',
+    '  Q1 -->|"no"| W1["<b>Se, Mo</b><br/>over half deleted<br/>below the LOQ"]\n',
+    '  Q1 -->|"too few samples"| W2["<b>I</b><br/>15 measurements<br/>in total"]\n',
+    '  Q1 -->|"yes"| Q2{"Does aluminium<br/>predict it?"}\n',
+    '  Q2 -->|"no"| W3["<b>Mn</b><br/>background only,<br/>no enrichment factor"]\n',
+    '  Q2 -->|"yes"| V["<b>Cu, Zn, Co</b><br/>background and<br/>pristine verdict"]\n',
+    "  style V fill:#d7ecd9,stroke:#1c5626\n",
+    "  style W1 fill:#eeeeee,stroke:#888\n",
+    "  style W2 fill:#eeeeee,stroke:#888\n",
+    "  style W3 fill:#fdf0d0,stroke:#7a5300\n",
+    "```\n", sep = "")
+```
+
+Both rules were fixed before any result was inspected, and both are recorded as
+frozen tables in the pipeline rather than recomputed at run time, so they cannot
+move quietly under a rebuild.
+
+## Background levels side by side
+
+Bulk sediment, `r UNIT`. This is the offshore median, the most widely applicable of
+the five estimates. Each element page carries all five.
+
+```{r}
+#| fig-height: 3.4
+#| fig-cap: "Offshore median concentration, bulk sediment. Log scale: the seven elements span four orders of magnitude."
+backgrounds |>
+  filter(cat == "bulk", method == "offshore", reliable) |>
+  left_join(elements |> filter(cat == "bulk") |> select(symbol, name), by = "symbol") |>
+  mutate(lab = paste0(name, "\n(", sym_display[as.character(symbol)], ")"),
+         lab = reorder(lab, value)) |>
+  ggplot(aes(value, lab)) +
+  geom_col(fill = "#4477AA") +
+  geom_text(aes(label = fmt(value)), hjust = -0.15, size = 3.1) +
+  scale_x_log10(expand = expansion(mult = c(0, 0.25))) +
+  labs(x = paste0("Offshore median (", UNIT, ", log scale)"), y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+## How much is pristine
+
+Among the samples that can be judged at all.
+
+```{r}
+#| fig-height: 2.8
+#| fig-cap: "Share of judgeable bulk samples classified pristine, by rule."
+verdicts |>
+  filter(cat == "bulk", reliable) |>
+  select(symbol, `Permissive rule` = pct_ef, `Strict rule` = pct_strict) |>
+  pivot_longer(-symbol, names_to = "rule", values_to = "pct") |>
+  mutate(symbol = factor(sym_display[as.character(symbol)],
+                         levels = sym_display[elem_levels])) |>
+  ggplot(aes(symbol, pct, fill = rule)) +
+  geom_col(position = position_dodge(width = .75), width = .65) +
+  geom_text(aes(label = paste0(pct, "%")),
+            position = position_dodge(width = .75), vjust = -0.4, size = 3) +
+  scale_fill_manual(values = c(`Permissive rule` = "#4477AA", `Strict rule` = "#228833")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+  labs(x = NULL, y = "Pristine (%)", fill = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank(), legend.position = "top")
+```
+
+The two rules agree almost exactly, which is worth noting: the strict rule adds two
+further criteria and barely changes the answer, so the verdict does not hinge on
+where a single threshold was drawn.

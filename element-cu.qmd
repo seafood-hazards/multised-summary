@@ -1,0 +1,18 @@
+---
+title: "Copper (Cu)"
+subtitle: "The best covered element, and the one with a fish-farm signal"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SYM <- "CU"
+```
+
+{{< include _element-body.qmd >}}
+
+---
+
+Full workings for this element are on the
+[detailed analysis site](`r REFINED`).

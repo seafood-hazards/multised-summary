@@ -1,0 +1,65 @@
+project:
+  type: website
+  pre-render: download_resources.R
+  resources:
+    - "data/summary/summary_map_sites.csv"
+
+website:
+  title: "multised"
+  description: "Background and pristine trace-element levels in marine sediment"
+  navbar:
+    search: true
+    right:
+      - icon: github
+        href: https://github.com/seafood-hazards/multised-summary
+        aria-label: GitHub
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Methods"
+        menu:
+          - text: "Data Collection and Preparation"
+            href: methods-data.qmd
+          - text: "Background Identification"
+            href: methods-background.qmd
+          - text: "Estimation of Pristine Sediment"
+            href: methods-pristine.qmd
+          - text: "Aquaculture Pressure"
+            href: methods-pressure.qmd
+      - text: "Results"
+        menu:
+          - text: "All elements at a glance"
+            href: results.qmd
+          - text: "---"
+          - text: "Copper (Cu)"
+            href: element-cu.qmd
+          - text: "Zinc (Zn)"
+            href: element-zn.qmd
+          - text: "Cobalt (Co)"
+            href: element-co.qmd
+          - text: "Manganese (Mn)"
+            href: element-mn.qmd
+          - text: "Molybdenum (Mo)"
+            href: element-mo.qmd
+          - text: "Selenium (Se)"
+            href: element-se.qmd
+          - text: "Iodine (I)"
+            href: element-i.qmd
+      - text: "Downloads"
+        href: downloads.qmd
+  page-footer:
+    center: "Institute of Marine Research | Built from the multised refined database"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    df-print: kable
+    fig-width: 7
+    fig-height: 4
+
+execute:
+  echo: false
+  warning: false
+  message: false

@@ -1,0 +1,25 @@
+# Assets every release must carry: the site downloads exactly these from
+# releases/latest/download/ at pre-render (see download_resources.R). This file
+# is the single source of truth: publish-release.sh uploads what is listed here,
+# and download_resources.R fetches the .csv lines from it rather than keeping its
+# own copy, so the two cannot drift apart.
+#
+# All of them are written by analyze_data("refined", module = "summary") in
+# multised-engine, into data/analysis/summary/.
+#
+# The database and the flat dataset are deliberately NOT here. The Downloads page
+# links to the multised-refined release, which is where they are published; this
+# site does not host a second copy that could go stale.
+summary_elements.csv
+summary_background.csv
+summary_verdicts.csv
+summary_coverage.csv
+summary_censoring.csv
+summary_pressure.csv
+summary_gradient.csv
+summary_controls.csv
+summary_sources.csv
+summary_flow.csv
+summary_map_sites.csv
+summary_map_grid.csv
+summary_meta.csv

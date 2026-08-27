@@ -1,0 +1,9 @@
+/.quarto/
+/_site/
+/data/summary/
+*.sqlite
+*.tsv.gz
+.Rproj.user
+.Rhistory
+
+**/*.quarto_ipynb

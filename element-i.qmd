@@ -1,0 +1,18 @@
+---
+title: "Iodine (I)"
+subtitle: "Almost no data"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SYM <- "I"
+```
+
+{{< include _element-body.qmd >}}
+
+---
+
+Full workings for this element are on the
+[detailed analysis site](`r REFINED`).

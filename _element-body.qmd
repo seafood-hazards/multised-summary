@@ -1,0 +1,302 @@
+```{r}
+#| label: element-context
+#| include: false
+# Everything below is driven by SYM, set by the calling page. No page holds a
+# number of its own: they all read the same summary CSVs.
+e_rows <- elements[elements$symbol == SYM, ]
+e_rows <- e_rows[order(match(e_rows$cat, cat_order)), ]
+e_name <- e_rows$name[1]
+e_cap  <- capability(SYM)
+e_bulk <- e_rows[e_rows$cat == "bulk", ]
+has_bulk <- nrow(e_bulk) > 0
+
+e_bg  <- backgrounds[backgrounds$symbol == SYM, ]
+e_vd  <- verdicts[verdicts$symbol == SYM, ]
+e_pr  <- pressure[pressure$symbol == SYM, ]
+e_ct  <- controls[controls$symbol == SYM & controls$reliable, ]
+# A withheld element gets no distance-band chart. Its surviving concentrations are
+# an upper tail, so a median by band would be a number we already know is biased,
+# drawn as if it were a reading.
+show_pressure <- !any(e_rows$withheld) &&
+  nrow(e_pr[e_pr$measure == "concentration" & e_pr$reliable, ]) > 0
+show_controls <- !any(e_rows$withheld) && nrow(e_ct) > 0
+```
+
+```{r}
+#| output: asis
+keyfig(
+  list(format(e_rows$n_elem[1], big.mark = " "), "measurements"),
+  list(format(e_rows$n_sites_elem[1], big.mark = " "), "sites"),
+  list(paste0(e_rows$year_min_elem[1], " to ", e_rows$year_max_elem[1]), "years"),
+  list(paste0(e_rows$n_sources_elem[1], " of ", nrow(sources)), "sources")
+)
+cat(chip(e_cap), " ", capability_note(SYM), "\n\n", sep = "")
+```
+
+## How much data there is
+
+```{r}
+e_rows |>
+  transmute(Fraction = cat_label[cat],
+            Measurements = format(n, big.mark = " "),
+            Sites = format(n_sites, big.mark = " "),
+            Datasets = n_datasets,
+            Sources = n_sources,
+            Years = ifelse(is.na(year_min), "-", paste0(year_min, " to ", year_max))) |>
+  kable()
+```
+
+```{r}
+#| output: asis
+#| eval: !expr any(e_rows$withheld)
+cat("## Why this element is withheld\n\n",
+    "The laboratories that measured ", tolower(e_name), " often could not quantify it: ",
+    "the value was somewhere below a detection limit rather than a number. Those rows ",
+    "are removed during cleaning, which is right for contamination screening and wrong ",
+    "for estimating a background.\n\n",
+    "A background **is** the low end of a distribution. Delete the low end, and what ",
+    "is left is an upper tail that would look like a respectable background and be too ",
+    "high. So no background and no verdict is published for ", tolower(e_name),
+    ", at any fraction.\n\n", sep = "")
+```
+
+```{r}
+#| eval: !expr any(e_rows$withheld)
+#| fig-height: 2.6
+#| fig-cap: !expr sprintf("Share of %s measurements that fell below the limit of quantification, by source. The dashed line is the 20 per cent limit above which a background is withheld.", tolower(e_name))
+censoring |>
+  filter(symbol == SYM) |>
+  mutate(source = ifelse(source == "ALL", "All sources", source),
+         source = reorder(source, pct_censored)) |>
+  ggplot(aes(pct_censored, source, fill = source == "All sources")) +
+  geom_col() +
+  geom_vline(xintercept = 20, linetype = 2, colour = "#b3261e") +
+  geom_text(aes(label = sprintf("%.1f%%", pct_censored)), hjust = -0.15, size = 3.1) +
+  scale_fill_manual(values = c(`FALSE` = "#bbbbbb", `TRUE` = "#CC6677"), guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.22))) +
+  labs(x = "Below the limit of quantification (%)", y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+```{r}
+#| output: asis
+#| eval: !expr any(e_rows$withheld)
+cat("The concentrations themselves are still in the database and the downloadable ",
+    "dataset, flagged as withheld. What is withheld is the *interpretation*, not the ",
+    "data.\n\n", sep = "")
+```
+
+```{r}
+#| output: asis
+#| eval: !expr isFALSE(any(e_rows$has_background)) && isFALSE(any(e_rows$withheld))
+cat("## Why there is no result\n\n",
+    "There is simply not enough of it. With fewer measurements than the reporting ",
+    "threshold of ", smeta$min_n, ", any background would be an artefact of the handful ",
+    "of samples that happen to exist, and would carry a false air of authority. The ",
+    "measurements are published in the dataset; no estimate is built on them.\n\n",
+    sep = "")
+```
+
+```{r}
+#| output: asis
+#| eval: !expr any(e_rows$has_background)
+cat("## Background levels\n\n",
+    "Five ways of estimating the natural level, in ", UNIT,
+    ". A blank means the method could not be applied.\n\n", sep = "")
+```
+
+```{r}
+#| eval: !expr any(e_rows$has_background)
+# igeo_b is deliberately not shown: the Igeo reference IS the offshore median, so
+# it would be a second identical column. It stays in summary_background.csv.
+lvl <- c("offshore", "offshore_p90", "mixture", "gsnorm", "pressure_far")
+lab <- c(offshore = "Offshore median", offshore_p90 = "Offshore P90",
+         mixture = "Mixture bound", gsnorm = "Grain-size normalised",
+         pressure_far = "Far from farms")
+e_bg |>
+  filter(method %in% lvl) |>
+  mutate(shown = ifelse(reliable, fmt(value), NA_character_),
+         Fraction = factor(cat_label[cat], levels = cat_label[cat_order]),
+         method = factor(lab[method], levels = lab[lvl])) |>
+  select(Fraction, method, shown) |>
+  arrange(Fraction, method) |>
+  pivot_wider(names_from = method, values_from = shown, names_sort = FALSE) |>
+  kable()
+```
+
+```{r}
+#| output: asis
+#| eval: !expr any(e_rows$has_verdict)
+cat("## Pristine verdict\n\n",
+    "A sample is judged against its own grain size, using aluminium. ",
+    "The permissive rule is a single test; the strict rule requires three ",
+    "independent criteria to agree.\n\n", sep = "")
+```
+
+```{r}
+#| eval: !expr any(e_rows$has_verdict)
+e_vd |>
+  filter(reliable) |>
+  transmute(Fraction = cat_label[cat],
+            Measurements = format(n, big.mark = " "),
+            `Can be judged` = sprintf("%s%% (%s)", pct_classifiable,
+                                      format(n_classifiable, big.mark = " ")),
+            `Pristine, permissive` = sprintf("%s%%", pct_ef),
+            `Pristine, strict` = sprintf("%s%%", pct_strict)) |>
+  kable()
+```
+
+```{r}
+#| output: asis
+#| eval: !expr any(!is.na(e_vd$pct_igeo_class0))
+cat("## Contamination classes\n\n",
+    "The geo-accumulation index compares each sample with a regional background ",
+    "concentration. It needs no aluminium, so it covers far more of the data than ",
+    "the pristine verdict does, at the cost of not controlling for grain size. Its ",
+    "reference is the offshore median in the table above.\n\n",
+    sep = "")
+```
+
+```{r}
+#| eval: !expr any(!is.na(e_vd$pct_igeo_class0))
+e_vd |>
+  filter(!is.na(pct_igeo_class0)) |>
+  transmute(Fraction = cat_label[cat],
+            Measurements = format(n_igeo, big.mark = " "),
+            `Unpolluted (Igeo at or below 0)` = sprintf("%s%%", pct_igeo_class0)) |>
+  kable()
+```
+
+```{r}
+#| output: asis
+#| eval: !expr show_pressure
+cat("## Distance to the nearest fish farm\n\n")
+```
+
+```{r}
+#| eval: !expr show_pressure
+#| fig-height: 3
+#| fig-cap: !expr sprintf("Median %s concentration by distance to the nearest marine fish farm, %s.", tolower(e_name), UNIT)
+e_pr |>
+  filter(measure == "concentration", reliable) |>
+  mutate(band = factor(band, levels = c("<1km", "1-5km", "5-20km", ">20km")),
+         Fraction = cat_label[cat]) |>
+  ggplot(aes(band, value, fill = Fraction)) +
+  geom_col(position = position_dodge(width = .8), width = .7) +
+  scale_fill_manual(values = c(Bulk = "#4477AA", `Sieved <63 um` = "#66CCEE",
+                               `Sieved <20 um` = "#228833")) +
+  labs(x = "Distance to the nearest fish farm", y = paste0("Median (", UNIT, ")"),
+       fill = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank(), legend.position = "top")
+```
+
+```{r}
+#| output: asis
+#| eval: !expr show_controls
+cat("Raw distance bands are confounded: the far band contains monitored pollution, ",
+    "and it is muddier than sediment under a cage. The controlled comparisons are ",
+    "the ones to read. See [Aquaculture Pressure](methods-pressure.qmd).\n\n", sep = "")
+```
+
+```{r}
+#| eval: !expr show_controls
+e_ct |>
+  transmute(Control = control,
+            `What it holds constant` = holds,
+            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = " "),
+                                           format(n_far, big.mark = " ")),
+            `Near vs far` = detail) |>
+  kable()
+```
+
+## Where the samples are
+
+```{r}
+#| include: false
+grid_path <- file.path(sdir, "summary_map_grid.csv")
+g <- read.csv(grid_path, stringsAsFactors = FALSE)
+g <- g[g$symbol == SYM & g$cat == "bulk",
+       c("lat", "lon", "n", "value_p50", "igeo_p50", "pct_below_p90")]
+if (!nrow(g)) g <- g[0, ]
+ojs_define(mapdata = g)
+map_has_points <- nrow(g) > 0
+# Igeo needs a background, and a withheld element has none, so the grid carries no
+# Igeo for it. Offering a colour scale that would paint every cell grey is worse
+# than not offering it.
+map_has_igeo <- map_has_points && any(!is.na(g$igeo_p50))
+ojs_define(map_unit = UNIT)
+ojs_define(map_has_igeo = map_has_igeo)
+```
+
+```{r}
+#| output: asis
+#| eval: !expr isFALSE(map_has_points)
+cat("There is no bulk-sediment map for this element: too few measurements.\n")
+```
+
+```{=html}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+```
+
+```{ojs}
+//| echo: false
+//| eval: true
+L = require("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
+pts = transpose(mapdata)
+```
+
+```{ojs}
+//| echo: false
+viewof chosen = map_has_igeo
+  ? Inputs.radio(
+      new Map([["Concentration", "value_p50"], ["Enrichment (Igeo)", "igeo_p50"]]),
+      { value: "value_p50", label: "Colour by" })
+  : html`<span></span>`
+layer = map_has_igeo ? chosen : "value_p50"
+```
+
+```{ojs}
+//| echo: false
+mapDiv = {
+  const div = html`<div id="map"></div>`;
+  yield div;
+  const map = L.map(div).setView([64, 8], 4);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap contributors, &copy; CARTO",
+    maxZoom: 12
+  }).addTo(map);
+
+  const vals = pts.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
+  if (!vals.length) return;
+  const sorted = vals.slice().sort((a, b) => a - b);
+  const q = p => sorted[Math.floor(p * (sorted.length - 1))];
+  const lo = q(0.05), hi = q(0.95);
+  // Diverging around zero for Igeo, sequential for concentration. Igeo is a log2
+  // index whose zero point is "at background", so a scale that does not mark zero
+  // would hide the only threshold that means anything.
+  const ramp = layer === "igeo_p50"
+    ? d3.scaleDiverging(d3.interpolateRdBu).domain([Math.max(2, hi), 0, Math.min(-2, lo)])
+    : d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
+
+  const canvas = L.canvas({ padding: 0.5 });
+  for (const d of pts) {
+    const v = d[layer];
+    if (v === null || isNaN(v)) continue;
+    L.circleMarker([d.lat, d.lon], {
+      renderer: canvas, radius: 4, weight: 0.4, color: "#333",
+      fillColor: ramp(v), fillOpacity: 0.85
+    }).bindPopup(
+      `<b>${d.lat.toFixed(1)}, ${d.lon.toFixed(1)}</b><br>` +
+      `median: ${d.value_p50} ${map_unit}<br>` +
+      `Igeo: ${d.igeo_p50 ?? "n/a"}<br>` +
+      `measurements: ${d.n}`
+    ).addTo(map);
+  }
+}
+```
+
+Each point is a 0.1 degree cell (roughly 11 km), coloured by the median of the
+sites inside it. Cells are summaries: a cell containing both clean and enriched
+sites shows the middle of them.

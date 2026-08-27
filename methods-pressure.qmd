@@ -1,0 +1,142 @@
+---
+title: "Aquaculture Pressure"
+subtitle: "Whether fish farming shows up in the seabed, and how we made sure it was not an artefact"
+---
+
+{{< include _setup.qmd >}}
+
+Norwegian salmon farming puts copper and zinc into the water: copper from net
+antifouling, zinc from feed. If that reaches the seabed, sediment near a farm should
+carry more of it than sediment far away.
+
+Testing that turned out to be harder than it sounds, and the first answer we
+published was wrong.
+
+## The axis
+
+Distance is measured to the nearest **marine fish farm**, not to any aquaculture
+licence. The register also contains shellfish, land-based and freshwater sites,
+which have no metal pressure and would blur the near band with sites that emit
+nothing.
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart LR\n",
+    '  A["Aquaculture register<br/>all licences"] --> F{"Marine fish<br/>farm?"}\n',
+    '  F -->|no| X["Excluded:<br/>shellfish, land-based,<br/>freshwater"]\n',
+    '  F -->|yes| D["Distance from each<br/>sediment site to the<br/>nearest one"]\n',
+    '  D --> B1["under 1 km"]\n',
+    '  D --> B2["1 to 5 km"]\n',
+    '  D --> B3["5 to 20 km"]\n',
+    '  D --> B4["over 20 km"]\n',
+    "  style X fill:#eeeeee,stroke:#888\n",
+    "  style D fill:#e8f0fe,stroke:#4477AA\n",
+    "```\n", sep = "")
+```
+
+## The two things that fooled us
+
+The far band is supposed to be the comparison: ordinary seabed, no farm nearby. It
+is not, for two independent reasons.
+
+::: {.callout-important}
+## The comparison band was not clean, and not the same material
+
+**It was full of monitored pollution.** More than half the copper measurements
+beyond 20 km come from Norwegian programmes that exist to monitor contaminated
+seabed, industry and sewage outfalls. Nobody surveys empty seabed at that
+intensity. The far band was a harbour, not a reference.
+
+**It was a different texture.** Sediment under a fish farm is roughly half as muddy
+as offshore sediment, and mud carries metal. Compared against a muddy reference, a
+sandy near-cage sample reads clean on grain size alone, before any farming is
+considered.
+:::
+
+Both push the same way, and both flatten a real gradient. With them left in, the
+data appeared to show that distance to a fish farm was a poor axis. That was a
+property of the bands, not of the seabed.
+
+## Controlling for both
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart TD\n",
+    '  R["All measurements<br/>by distance band"] --> C1["Remove sites monitored<br/>for known pollution"]\n',
+    '  C1 --> C2["Keep only samples in a<br/>common mud-content window"]\n',
+    '  C2 --> G["Compare like with like"]\n',
+    "  style R fill:#eeeeee,stroke:#888\n",
+    "  style G fill:#d7ecd9,stroke:#1c5626\n",
+    "```\n", sep = "")
+```
+
+Once both controls are applied, copper shows a clean gradient: highest under the
+cages, falling with distance, lowest beyond 20 km.
+
+```{r}
+#| fig-height: 3.2
+#| fig-cap: "Geo-accumulation index for copper in bulk sediment, after removing monitored pollution and matching mud content. Above zero means enriched relative to the regional background."
+pm <- pressure |>
+  filter(measure == "igeo_matched", cat == "bulk", symbol == "CU") |>
+  mutate(band = factor(band, levels = c("<1km", "1-5km", "5-20km", ">20km")))
+ggplot(pm, aes(band, value)) +
+  geom_hline(yintercept = 0, colour = "#999") +
+  geom_col(fill = "#4477AA", width = .6) +
+  geom_text(aes(label = sprintf("%+.2f", value),
+                vjust = ifelse(value >= 0, -0.4, 1.3)), size = 3.3) +
+  scale_y_continuous(expand = expansion(mult = c(0.18, 0.18))) +
+  labs(x = "Distance to the nearest fish farm", y = "Median Igeo (copper, bulk)") +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank())
+```
+
+## Four controls, one answer
+
+A single control can always be an accident of which samples it happened to keep.
+Copper was tested four ways, on four different subsets of the data, and none of
+them uses aluminium.
+
+```{r}
+controls |>
+  filter(symbol == "CU", cat == "bulk", reliable) |>
+  transmute(Control = control,
+            `What it holds constant` = holds,
+            `Samples near / far` = sprintf("%s / %s", format(n_near, big.mark = " "),
+                                           format(n_far, big.mark = " ")),
+            `Copper near vs far` = detail) |>
+  kable()
+```
+
+Four designs, four subsets of the data, the same direction. That is the argument.
+
+::: {.callout-note}
+## Zinc behaves differently, and we report that
+
+```{r}
+#| include: false
+zn <- controls |> filter(symbol == "ZN", cat == "bulk")
+zn_tex <- zn$detail[zn$control == "texture-matched"]
+zn_mun <- zn$detail[zn$control == "same municipality"]
+```
+
+Zinc moves with distance under the texture control (`r zn_tex`) but loses it once
+region is held constant (`r zn_mun`). Two controls disagreeing is a reason to read
+zinc as sediment character rather than farm input, so we say so rather than
+reporting the more favourable number.
+:::
+
+## What this does not show
+
+- **Not a dose-response.** Larger farms do not straightforwardly mean more metal:
+  large farms are sited in deeper, more exposed water, which disperses whatever
+  they release. Depth and farm size are confounded.
+- **Not a health assessment.** These are sediment concentrations, not exposure.
+- **Not a verdict change.** The pristine classification never sees the aquaculture
+  axis. That is deliberate: it is what allows this page to be an independent check
+  on it rather than a restatement of it.
+
+Full workings: [Pressure-Based Background](`r REFINED`/background-pressure.html),
+[Pressure Controls](`r REFINED`/pressure-controls.html),
+[Geo-Accumulation Index](`r REFINED`/background-igeo.html).

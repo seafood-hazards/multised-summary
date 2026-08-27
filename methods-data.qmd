@@ -1,0 +1,92 @@
+---
+title: "Data Collection and Preparation"
+subtitle: "How five separate archives became one comparable database"
+---
+
+{{< include _setup.qmd >}}
+
+## The five sources
+
+Each source is a public archive with its own file formats, units, element codes and
+quality conventions. None of them was designed to be combined with the others.
+
+```{r}
+sources |>
+  transmute(Source = source,
+            Measurements = format(n, big.mark = " "),
+            `Share` = sprintf("%.1f%%", pct),
+            Sites = format(n_sites, big.mark = " "),
+            Datasets = n_datasets,
+            Elements = n_elements,
+            Years = paste0(year_min, " to ", year_max)) |>
+  kable()
+```
+
+## The five steps
+
+Each step is a separate database, so any result can be traced back and any step
+re-run on its own.
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart TD\n",
+    '  P["1. Parse<br/><i>read each archive as it is</i>"]\n',
+    '  S["2. Harmonise<br/><i>one 7-table schema, shared units</i>"]\n',
+    '  C["3. Clean<br/><i>apply the quality flags</i>"]\n',
+    '  M["4. Merge<br/><i>union, then remove duplicates</i>"]\n',
+    '  R["5. Refine<br/><i>cut the analysis database</i>"]\n',
+    "  P --> S --> C --> M --> R\n",
+    "  style R fill:#e8f0fe,stroke:#4477AA\n",
+    "```\n", sep = "")
+```
+
+```{r}
+step_label <- c(slim = "2. Harmonise", clean = "3. Clean", merged = "4. Merge",
+                refined = "5. Refine", analysed = "Reported on this site")
+flow |>
+  transmute(Step = step_label[stage],
+            Measurements = format(n, big.mark = " "),
+            Sites = format(n_sites, big.mark = " "),
+            `What happens` = what) |>
+  kable()
+```
+
+```{r}
+#| include: false
+drop_pct <- round(100 * (1 - flow$n[flow$stage == "analysed"] /
+                             flow$n[flow$stage == "slim"]))
+```
+
+About `r drop_pct` per cent of the harmonised measurements do not reach the final
+reported set. That is the point of the pipeline rather than a loss: the rows
+removed are failed quality checks, values below the limit of quantification,
+elements outside this study, and the same sample reported twice by two archives.
+
+## What had to be made comparable
+
+```{r}
+tibble::tribble(
+  ~Problem, ~`What we did`,
+  "Different units (mg/kg, ug/g, ppm, %)", "Converted everything to mg/kg dry weight",
+  "Different element codes per archive",   "Mapped to one element table with CAS numbers",
+  "Wet-weight and dry-weight reporting",   "Recorded the basis, and standardised to dry weight",
+  "Bulk sediment vs sieved fractions",     "Kept them apart: they are different materials, never pooled",
+  "The same cruise in two archives",       "Matched on position, date and value, and kept one",
+  "Positions of varying precision",        "Sites keyed on latitude and longitude to 3 decimal places"
+) |> kable()
+```
+
+::: {.callout-important}
+## Bulk and sieved samples are never mixed
+
+Sieving concentrates fine particles, and fine particles carry more metal. A sieved
+sample and a bulk sample from the same seabed give different numbers for the same
+sediment. Every result on this site is reported separately for bulk, for the
+fraction below 63 um and for the fraction below 20 um, and no average is ever taken
+across them.
+:::
+
+Full detail: [database schema](`r REFINED`/db-schema-refined.html) and the
+[cleaning report](https://seafood-hazards.github.io/multised-clean) on the
+detailed sites.

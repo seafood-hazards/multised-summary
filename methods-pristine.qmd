@@ -1,0 +1,111 @@
+---
+title: "Estimation of Pristine Sediment"
+subtitle: "Deciding whether one sample is at its background, and admitting when we cannot"
+---
+
+{{< include _setup.qmd >}}
+
+A background is a number for a region. A **pristine verdict** is a judgement about
+a single sample: is this one at its natural level, or above it?
+
+The obstacle is grain size. Fine, muddy sediment naturally holds several times more
+metal than coarse sand from the same seabed, with no pollution involved. Comparing
+a raw concentration against a regional background therefore measures texture as
+much as contamination.
+
+## Two ways round it
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart TD\n",
+    '  S["One sample"] --> Q{"Is aluminium<br/>measured?"}\n',
+    '  Q -->|yes| EF["<b>Enrichment factor</b><br/>metal per aluminium,<br/>against an offshore reference"]\n',
+    '  Q -->|no| I["<b>Geo-accumulation index</b><br/>metal against a regional<br/>background concentration"]\n',
+    '  EF --> V["EF below 1<br/>= pristine"]\n',
+    '  I --> W["Igeo at or below 0<br/>= unpolluted"]\n',
+    "  style EF fill:#e8f0fe,stroke:#4477AA\n",
+    "  style I fill:#fdf0d0,stroke:#7a5300\n",
+    "```\n", sep = "")
+```
+
+**Aluminium is the grain-size correction.** It is a structural component of clay,
+so it rises and falls with the mud content of a sample. Dividing the metal by it
+removes the texture effect and leaves what is left over.
+
+::: {.callout-warning}
+## Iron is deliberately not used
+
+Iron is the other conventional normaliser and would give far better coverage.
+Norwegian fish feed contains iron, so iron near a farm is partly the very pressure
+being measured. Using it would quietly subtract the signal. Iron is reported for
+comparison and never used to issue a verdict.
+:::
+
+## Aluminium only works for three of the seven
+
+A normaliser is only a grain-size control if it actually predicts the element.
+Measured against the offshore reference, aluminium predicts cobalt, copper and zinc
+in bulk sediment, and nothing else.
+
+```{r}
+elements |>
+  filter(cat == "bulk") |>
+  mutate(symbol = factor(symbol, levels = elem_levels)) |>
+  arrange(symbol) |>
+  transmute(Element = paste0(name, " (", sym_display[as.character(symbol)], ")"),
+            `Aluminium predicts it` = ifelse(normalisable, "yes", "no"),
+            `Verdict issued` = ifelse(has_verdict, "yes", "no"),
+            Reason = vapply(as.character(symbol), capability_note, character(1))) |>
+  kable()
+```
+
+Where aluminium fails, we issue no enrichment factor. The alternative would be to
+divide by something that does not track texture and call the result a grain-size
+control, which would be worse than saying nothing.
+
+## The verdict, and its cost
+
+Two rules are published. The permissive one is a single test; the strict one
+requires three independent criteria to agree.
+
+```{r}
+verdicts |>
+  filter(cat == "bulk", reliable) |>
+  mutate(symbol = factor(symbol, levels = elem_levels)) |>
+  arrange(symbol) |>
+  transmute(Element = sym_display[as.character(symbol)],
+            Measurements = format(n, big.mark = " "),
+            `Can be judged` = sprintf("%s%%", pct_classifiable),
+            `Judged pristine` = sprintf("%s%%", pct_ef),
+            `Pristine, strict rule` = sprintf("%s%%", pct_strict)) |>
+  kable()
+```
+
+The middle column is the finding that matters most, and it is a data gap rather
+than a result. **Most samples cannot be judged at all**, because aluminium was
+never measured alongside the metal.
+
+```{r}
+#| fig-height: 2.8
+#| fig-cap: "The share of samples that can be judged falls away as you approach a fish farm."
+cov <- coverage |>
+  filter(axis == "distance to fish farm") |>
+  mutate(band = factor(band, levels = band))
+ggplot(cov, aes(band, pct_classifiable)) +
+  geom_col(fill = "#CC6677") +
+  geom_text(aes(label = paste0(pct_classifiable, "%")), vjust = -0.4, size = 3.3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(x = "Distance to the nearest fish farm", y = "Can be judged (%)") +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank())
+```
+
+Aluminium coverage runs opposite to what the question needs: it is common in
+offshore survey work and rare in near-cage monitoring. Almost none of the sediment
+under a Norwegian fish farm can be given an aluminium-based verdict, which is why
+the [aquaculture question](methods-pressure.qmd) is answered with a different tool.
+
+Full workings: [Enrichment Factor](`r REFINED`/background-ef.html),
+[Pristine Classification](`r REFINED`/background-pristine.html),
+[Regression Normalisation](`r REFINED`/background-regression.html).

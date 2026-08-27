@@ -1,0 +1,93 @@
+```{r}
+#| label: setup
+#| include: false
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+
+# Filtered data frames keep their original row names, which kable renders as a
+# meaningless leading column of row numbers. Nothing on this site wants them.
+kable <- function(x, ...) knitr::kable(x, row.names = FALSE, ...)
+
+# A missing value in these tables always means "this method could not be applied",
+# never "zero". A blank says that; the string NA does not.
+options(knitr.kable.NA = "")
+
+sdir <- "data/summary"
+rd <- function(f) read.csv(file.path(sdir, f), stringsAsFactors = FALSE,
+                           check.names = FALSE)
+
+elements <- rd("summary_elements.csv")
+backgrounds <- rd("summary_background.csv")
+verdicts <- rd("summary_verdicts.csv")
+coverage <- rd("summary_coverage.csv")
+censoring <- rd("summary_censoring.csv")
+pressure <- rd("summary_pressure.csv")
+gradient <- rd("summary_gradient.csv")
+controls <- rd("summary_controls.csv")
+sources  <- rd("summary_sources.csv")
+flow     <- rd("summary_flow.csv")
+smeta    <- rd("summary_meta.csv")
+
+elem_levels <- c("CU", "ZN", "CO", "MN", "MO", "SE", "I")
+cat_label <- c(bulk = "Bulk", sieved63 = "Sieved <63 um", sieved20 = "Sieved <20 um")
+cat_order <- c("bulk", "sieved63", "sieved20")
+
+# The database keys elements in upper case; chemistry writes them in title case.
+# Pages show the second and join on the first.
+sym_display <- c(CO = "Co", CU = "Cu", I = "I", MN = "Mn",
+                 MO = "Mo", SE = "Se", ZN = "Zn")
+
+# Units. Every target is reported in mg/kg dry weight in the refined database.
+UNIT <- "mg/kg dry weight"
+
+# A one-word capability label per element, derived from the flags the pipeline
+# wrote. Nothing here decides anything: has_verdict and has_background come from
+# summary_elements.csv, which the engine builds from the frozen censoring and
+# normalisability tables.
+capability <- function(el) {
+  e <- elements[elements$symbol == el, ]
+  if (any(e$has_verdict)) "full"
+  else if (any(e$has_background)) "partial"
+  else "none"
+}
+
+capability_note <- function(el) {
+  e <- elements[elements$symbol == el, ]
+  if (any(e$withheld))
+    sprintf("Withheld: %.1f%% of measurements fell below the limit of quantification.",
+            e$pct_censored[1])
+  else if (any(e$has_verdict))
+    "Background estimates and a pristine verdict are published for bulk sediment."
+  else if (any(e$has_background))
+    "Background estimates are published. No pristine verdict: aluminium does not predict this element, so dividing by it would not be a grain-size control."
+  else
+    sprintf("Too few measurements for any estimate: no fraction reaches the reporting threshold of %d.",
+            smeta$min_n)
+}
+
+chip <- function(kind) {
+  txt <- c(full = "Background + pristine verdict",
+           partial = "Background only",
+           none = "Not reported")[kind]
+  sprintf('<span class="chip chip-%s">%s</span>', kind, txt)
+}
+
+# Format a number for prose: no scientific notation, sensible significant digits.
+fmt <- function(x, digits = 3) {
+  ifelse(is.na(x), "not available",
+         formatC(signif(x, digits), format = "fg", big.mark = " ", drop0trailing = TRUE))
+}
+
+keyfig <- function(...) {
+  items <- list(...)
+  cells <- vapply(items, function(it)
+    sprintf('<div><span class="n">%s</span><span class="l">%s</span></div>',
+            it[[1]], it[[2]]), character(1))
+  cat('<div class="keyfig">', paste(cells, collapse = ""), "</div>\n\n", sep = "")
+  invisible(NULL)
+}
+
+REFINED <- "https://seafood-hazards.github.io/multised-refined"
+```

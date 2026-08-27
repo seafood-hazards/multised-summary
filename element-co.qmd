@@ -1,0 +1,18 @@
+---
+title: "Cobalt (Co)"
+subtitle: "Fewer measurements, but a full verdict"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SYM <- "CO"
+```
+
+{{< include _element-body.qmd >}}
+
+---
+
+Full workings for this element are on the
+[detailed analysis site](`r REFINED`).

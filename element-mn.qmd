@@ -1,0 +1,18 @@
+---
+title: "Manganese (Mn)"
+subtitle: "Background only: aluminium does not predict it"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SYM <- "MN"
+```
+
+{{< include _element-body.qmd >}}
+
+---
+
+Full workings for this element are on the
+[detailed analysis site](`r REFINED`).

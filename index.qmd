@@ -1,0 +1,117 @@
+---
+title: "Background and pristine marine sediment"
+subtitle: "Seven trace elements, five data sources, one summary"
+toc: false
+---
+
+{{< include _setup.qmd >}}
+
+We collected every marine-sediment trace-element measurement we could obtain from
+five public sources, harmonised them into one database, and asked two questions of
+it:
+
+1. **What is the natural background level of each element?**
+2. **Which samples are at that background, i.e. pristine?**
+
+This site is the short answer. Every number on it is computed by the pipeline and
+read from a file; nothing is typed in by hand. Where you want the workings, each
+page links to the corresponding page on the
+[detailed analysis site](`r REFINED`).
+
+```{r}
+#| output: asis
+tot <- flow$n[flow$stage == "analysed"]
+keyfig(
+  list(format(tot, big.mark = " "), "measurements"),
+  list(format(smeta$n_sites, big.mark = " "), "sampling sites"),
+  list(nrow(sources), "data sources"),
+  list(paste0(min(sources$year_min), " to ", max(sources$year_max)), "years covered"),
+  list("3 of 7", "elements with a pristine verdict")
+)
+```
+
+## How the data was built
+
+```{r}
+#| output: asis
+#| fig-cap: "Five sources become one database."
+# The counts are read from summary_flow.csv, not typed here: the diagram cannot
+# drift away from the databases it describes.
+n <- function(stage) format(flow$n[flow$stage == stage], big.mark = " ")
+src <- paste0(sprintf('  %s["%s"] --> S\n', LETTERS[seq_len(nrow(sources))],
+                      sources$source), collapse = "")
+cat("```{mermaid}\n",
+    "flowchart LR\n", src,
+    sprintf('  S["Harmonised<br/>%s"] --> Cl["Quality controlled<br/>%s"]\n', n("slim"), n("clean")),
+    sprintf('  Cl --> M["Merged, de-duplicated<br/>%s"]\n', n("merged")),
+    sprintf('  M --> R["Analysis database<br/>%s"]\n', n("refined")),
+    sprintf('  R --> A2["Reported here<br/>%s"]\n', n("analysed")),
+    '  A2 --> Q1["Background"]\n',
+    '  A2 --> Q2["Pristine verdict"]\n',
+    "  style A2 fill:#e8f0fe,stroke:#4477AA\n",
+    "  style Q1 fill:#d7ecd9,stroke:#1c5626\n",
+    "  style Q2 fill:#d7ecd9,stroke:#1c5626\n",
+    "```\n", sep = "")
+```
+
+Details: [Data Collection and Preparation](methods-data.qmd).
+
+## What we can say, element by element
+
+Not every element can be reported the same way, and the reason is always in the
+data rather than in the method. Two rules decide it, and both are applied before
+any result is looked at:
+
+- An element whose measurements were mostly **below the limit of quantification**
+  has no usable background. What survives is an upper tail wearing the name
+  background. This removes selenium and molybdenum.
+- A **pristine verdict** needs aluminium to control for grain size, and aluminium
+  only predicts an element for some of them. Where it does not, dividing by it is
+  not a grain-size control, so we publish concentrations and background but issue
+  no verdict.
+
+```{r}
+#| output: asis
+tab <- elements |>
+  group_by(symbol, name) |>
+  summarise(n = first(n_elem),
+            cap = capability(first(symbol)),
+            .groups = "drop") |>
+  mutate(symbol = factor(symbol, levels = elem_levels)) |>
+  arrange(symbol) |>
+  transmute(Element = sprintf("[%s (%s)](element-%s.qmd)", name,
+                              sym_display[as.character(symbol)],
+                              tolower(as.character(symbol))),
+            Measurements = format(n, big.mark = " "),
+            `What is published` = chip(cap),
+            Why = vapply(as.character(symbol), capability_note, character(1)))
+kable(tab, escape = FALSE)
+```
+
+## The aquaculture question
+
+Norway's fish farms are a plausible source of copper and zinc to the seabed. We
+tested it on an axis the background work never saw, so the two are independent.
+
+```{r}
+#| output: asis
+g <- gradient |> filter(cat == "bulk", symbol %in% c("CU", "ZN", "CO")) |>
+  mutate(symbol = factor(symbol, levels = elem_levels)) |> arrange(symbol)
+cu <- g$enrich_near_clean[g$symbol == "CU"]
+n_ctl <- sum(controls$symbol == "CU" & controls$cat == "bulk" & controls$reliable)
+keyfig(
+  list(sprintf("%.1fx", cu), "copper under the cages vs beyond 20 km"),
+  list(sprintf("%d of %d", n_ctl, n_ctl), "independent controls copper survives"),
+  list("no", "verdict changes: the gradient is measured, not assumed")
+)
+```
+
+Details: [Aquaculture Pressure](methods-pressure.qmd).
+
+::: {.callout-note}
+## This is not the final submission
+
+This site summarises the analysis as it stands. The dataset submitted to EFSA is
+a filtered subset of it, and that filtering step is not built yet. Treat the
+numbers here as current, not final.
+:::

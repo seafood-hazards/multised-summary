@@ -1,0 +1,116 @@
+---
+title: "Downloads"
+subtitle: "The database, the flat dataset, and the tables behind this site"
+---
+
+{{< include _setup.qmd >}}
+
+Everything here is published from the refined generation, which is the database
+this site summarises. There is deliberately no second copy of the data hosted on
+this site: one published copy cannot go stale against another.
+
+## The analysis database
+
+```{r}
+#| output: asis
+keyfig(
+  list(format(smeta$n_measurement, big.mark = " "), "measurements"),
+  list(format(smeta$n_sites, big.mark = " "), "sites"),
+  list(smeta$n_elements, "target elements"),
+  list(smeta$db_modified, "database built")
+)
+```
+
+**[multised_refined.sqlite](https://github.com/seafood-hazards/multised-refined/releases/latest/download/multised_refined.sqlite)**
+(SQLite, about 22 MB)
+
+The full relational database: measurements, sites, sampling events, methods,
+normalisers and the aquaculture register, with every derived flag this site
+reports. Use this if you want to run your own queries.
+
+Schema and table documentation:
+[DB Schema](`r REFINED`/db-schema-refined.html).
+
+## The flat dataset
+
+**[multised_refined_dataset.tsv.gz](https://github.com/seafood-hazards/multised-refined/releases/latest/download/multised_refined_dataset.tsv.gz)**
+(gzipped TSV, about 3 MB)
+
+One row per measurement with every joined column already attached, plus a column
+dictionary. Use this if you want to open the data in R, Python, or a spreadsheet
+without writing SQL.
+
+Column-by-column description:
+[Dataset Download](`r REFINED`/download-dataset.html).
+
+## The EFSA submission table
+
+**[EFSA format](`r REFINED`/efsa-format-v2.html)** on the detailed site.
+
+A separate cut of the same data, shaped to EFSA's reporting workbook and its
+extraction specification. Both it and the flat dataset are cut from one frame, so
+they cannot disagree with each other.
+
+::: {.callout-note}
+## Not the final submission
+
+The dataset actually submitted will be a filtered subset of this, restricted to
+samples with a pristine verdict. That filtering step is not built yet, so no
+submission file is published here.
+:::
+
+## The tables behind this site
+
+Every figure and table on this site is read from these files. They are attached to
+each [release of this repository](https://github.com/seafood-hazards/multised-summary/releases/latest).
+
+```{r}
+# The descriptions are written here, but the file list is checked against
+# _scripts/release-assets.txt so this page cannot quietly fall behind a release
+# that carries a file it does not describe.
+tbl <- data.frame(
+  File = c("summary_elements.csv", "summary_background.csv", "summary_verdicts.csv",
+           "summary_coverage.csv", "summary_censoring.csv", "summary_pressure.csv",
+           "summary_gradient.csv", "summary_controls.csv", "summary_sources.csv",
+           "summary_flow.csv", "summary_map_grid.csv", "summary_map_sites.csv",
+           "summary_meta.csv"),
+  Contents = c(
+    "One row per element and fraction: how much data, and what can be said about it",
+    "Every background estimate from every method",
+    "Classifiable share and pristine share, per element and fraction",
+    "How the classifiable share falls with distance to a fish farm and to the coast",
+    "Below-detection-limit shares per element and source",
+    "The distance-band gradient, as concentration and as Igeo",
+    "Near-versus-far enrichment, before and after removing monitored pollution",
+    "The four independent controls on the near-cage gradient",
+    "What each of the five sources contributes",
+    "Measurement counts at each pipeline stage",
+    "A 0.1 degree grid of median concentration and Igeo: the map layer",
+    "The same at full site resolution",
+    "Provenance: which database, built when, with which rules"
+  )
+)
+
+manifest <- readLines("_scripts/release-assets.txt")
+manifest <- trimws(manifest)
+manifest <- manifest[nzchar(manifest) & !startsWith(manifest, "#")]
+undescribed <- setdiff(manifest, tbl$File)
+if (length(undescribed))
+  stop("release assets with no description on this page: ",
+       paste(undescribed, collapse = ", "))
+
+kable(tbl)
+```
+
+## Licence and citation
+
+The underlying measurements belong to their original providers
+(`r paste(sources$source, collapse = ", ")`) and remain subject to their terms.
+The harmonised database, the derived values and this site are produced by the
+Institute of Marine Research.
+
+```{r}
+#| output: asis
+cat("Built from `", smeta$refined_db, "` (", smeta$db_modified, "), assembled ",
+    smeta$generated, ".\n", sep = "")
+```

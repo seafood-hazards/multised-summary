@@ -1,0 +1,30 @@
+/* Summary site: a few small things on top of cosmo. The house style here is
+   short pages, so the rules below are about making tables and callouts read
+   quickly rather than about decoration. */
+
+.navbar-brand { font-weight: 600; letter-spacing: .02em; }
+
+/* Verdict chips, used in the element pages and the coverage matrix. */
+.chip {
+  display: inline-block; padding: .12em .6em; border-radius: 1em;
+  font-size: .82em; font-weight: 600; white-space: nowrap; line-height: 1.5;
+}
+.chip-full    { background: #d7ecd9; color: #1c5626; }
+.chip-partial { background: #fdf0d0; color: #7a5300; }
+.chip-none    { background: #eeeeee; color: #555555; }
+
+/* Headline numbers on the element and home pages. */
+.keyfig {
+  display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.2rem 0 1.6rem 0;
+}
+.keyfig > div {
+  flex: 1 1 8rem; padding: .8rem 1rem; border: 1px solid #e3e3e3;
+  border-radius: .4rem; background: #fbfbfb;
+}
+.keyfig .n { display: block; font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.keyfig .l { display: block; font-size: .82rem; color: #666; margin-top: .25rem; }
+
+table { font-size: .93rem; }
+th { white-space: nowrap; }
+
+#map { height: 460px; border-radius: .4rem; border: 1px solid #ddd; }

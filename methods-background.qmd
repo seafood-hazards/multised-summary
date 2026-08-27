@@ -1,0 +1,107 @@
+---
+title: "Background Identification"
+subtitle: "Five ways of asking what is natural, and what they agree on"
+---
+
+{{< include _setup.qmd >}}
+
+The background is the concentration you would expect with no human input. Nobody
+can measure it directly, because there is no untouched control coast to sample. So
+it has to be inferred, and every way of inferring it rests on an assumption that
+could be wrong.
+
+We used five, deliberately chosen to fail in different ways.
+
+```{r}
+#| output: asis
+cat("```{mermaid}\n",
+    "flowchart LR\n",
+    '  Q["What is<br/>natural?"]\n',
+    '  Q --> A["<b>Where</b><br/>far from the coast"]\n',
+    '  Q --> B["<b>How much</b><br/>the low percentiles"]\n',
+    '  Q --> C["<b>Shape</b><br/>two overlapping populations"]\n',
+    '  Q --> D["<b>Texture</b><br/>corrected for mud content"]\n',
+    '  Q --> E["<b>Pressure</b><br/>far from any fish farm"]\n',
+    "  style Q fill:#e8f0fe,stroke:#4477AA\n",
+    "```\n", sep = "")
+```
+
+```{r}
+tibble::tribble(
+  ~Method, ~`The assumption`, ~`How it can fail`,
+  "Offshore", "Sediment more than 10 km from the coast is little affected by land", "Offshore does not mean clean: some of it is monitored precisely because it is contaminated",
+  "Percentiles", "The low end of the distribution is the natural end", "If most samples are polluted, the low end is polluted too",
+  "Mixture", "Natural and enriched samples form two distinguishable populations", "Only works where the two are actually separable",
+  "Grain-size normalised", "Compare like with like after correcting for mud content", "Needs grain size, which most samples lack",
+  "Pressure bands", "Sediment far from a known source is closer to natural", "Distance is a proxy: other sources exist"
+) |> kable()
+```
+
+::: {.callout-tip}
+## Agreement is the evidence
+
+No single method is treated as correct. Where several agree, the agreement is the
+result. Where they disagree, the disagreement is the result, and we say so instead
+of picking a favourite.
+:::
+
+## What the five give
+
+Bulk sediment, in `r UNIT`. A blank means the method could not be applied to that
+element.
+
+```{r}
+# igeo_b is deliberately not shown: the Igeo reference IS the offshore median, so
+# it would be a second identical column. It stays in summary_background.csv.
+lvl <- c("offshore", "offshore_p90", "mixture", "gsnorm", "pressure_far")
+lab <- c(offshore = "Offshore median", offshore_p90 = "Offshore P90",
+         mixture = "Mixture bound", gsnorm = "Grain-size normalised",
+         pressure_far = "Far from farms")
+backgrounds |>
+  filter(cat == "bulk", method %in% lvl) |>
+  mutate(shown = ifelse(reliable, fmt(value), NA_character_),
+         method = factor(lab[method], levels = lab[lvl]),
+         symbol = factor(symbol, levels = elem_levels)) |>
+  select(symbol, method, shown) |>
+  arrange(symbol, method) |>
+  pivot_wider(names_from = method, values_from = shown, names_sort = FALSE) |>
+  mutate(symbol = sym_display[as.character(symbol)]) |>
+  rename(Element = symbol) |>
+  kable()
+```
+
+Two things stand out, and both are honest limits rather than problems to hide.
+
+**Selenium and molybdenum are missing.** Over half their measurements fell below
+what the laboratory could quantify, and those rows are removed during cleaning. A
+background is the low end of a distribution, so removing the low end and then
+estimating a background from what remains would give a number that is too high and
+looks respectable. We publish no background for either.
+
+```{r}
+#| fig-height: 2.6
+#| fig-cap: "Share of measurements below the limit of quantification. Above 20 per cent, the background is withheld."
+elements |>
+  group_by(symbol) |>
+  summarise(pct = first(pct_censored), withheld = any(withheld), .groups = "drop") |>
+  mutate(symbol = factor(sym_display[as.character(symbol)],
+                         levels = rev(sym_display[elem_levels]))) |>
+  ggplot(aes(pct, symbol, fill = withheld)) +
+  geom_col() +
+  geom_vline(xintercept = 20, linetype = 2, colour = "#b3261e") +
+  geom_text(aes(label = sprintf("%.1f%%", pct)), hjust = -0.15, size = 3.1) +
+  scale_fill_manual(values = c(`FALSE` = "#4477AA", `TRUE` = "#CC6677"), guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.2))) +
+  labs(x = "Below the limit of quantification (%)", y = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+**The methods disagree most for copper and zinc.** These are the two elements with
+a real human source in this region, so a spread between "the low end of everything"
+and "far from any farm" is what you would expect to see.
+
+Full workings: [Background](`r REFINED`/background.html),
+[Mixture](`r REFINED`/background-mixture.html),
+[Grain-size normalised](`r REFINED`/background-gsnorm.html),
+[Pressure-based](`r REFINED`/background-pressure.html).
