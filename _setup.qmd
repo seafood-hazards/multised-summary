@@ -19,6 +19,8 @@ rd <- function(f) read.csv(file.path(sdir, f), stringsAsFactors = FALSE,
                            check.names = FALSE)
 
 elements <- rd("summary_elements.csv")
+reference <- rd("summary_reference.csv")
+sea_spread <- rd("summary_sea_spread.csv")
 backgrounds <- rd("summary_background.csv")
 verdicts <- rd("summary_verdicts.csv")
 coverage <- rd("summary_coverage.csv")
@@ -59,9 +61,14 @@ capability_note <- function(el) {
     sprintf("Withheld: %.1f%% of measurements fell below the limit of quantification.",
             e$pct_censored[1])
   else if (any(e$has_verdict))
-    "Background estimates and a pristine verdict are published for bulk sediment."
+    # which fractions carry a verdict is read from the data, not assumed to be bulk:
+    # a sieved fraction is grain-size controlled by the sieve and can carry one where
+    # bulk does not (manganese is the case in point).
+    sprintf("Background estimates and a pristine verdict are published for %s.",
+            tolower(paste(cat_label[intersect(cat_order, e$cat[e$has_verdict])],
+                          collapse = ", ")))
   else if (any(e$has_background))
-    "Background estimates are published. No pristine verdict: aluminium does not predict this element, so dividing by it would not be a grain-size control."
+    "Background estimates are published. No pristine verdict: aluminium does not predict this element in bulk sediment, so dividing by it would not be a grain-size control, and there is no sieved fraction here with enough data to judge instead."
   else
     sprintf("Too few measurements for any estimate: no fraction reaches the reporting threshold of %d.",
             smeta$min_n)
