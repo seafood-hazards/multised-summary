@@ -1,6 +1,6 @@
 ---
 title: "Manganese (Mn)"
-subtitle: "Background only: aluminium does not predict it"
+subtitle: "Judged in the sieved fractions, background only in bulk"
 ---
 
 {{< include _setup.qmd >}}
