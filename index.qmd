@@ -26,7 +26,11 @@ keyfig(
   list(format(smeta$n_sites, big.mark = "\u00a0"), "sampling sites"),
   list(nrow(sources), "data sources"),
   list(paste0(min(sources$year_min), " to ", max(sources$year_max)), "years covered"),
-  list("3 of 7", "elements with a pristine verdict")
+  # derived, never typed: manganese joined this count when the sieved fractions
+  # started carrying a verdict, and a typed "3 of 7" silently said otherwise
+  list(sprintf("%d of %d", n_distinct(elements$symbol[elements$has_verdict]),
+               n_distinct(elements$symbol)),
+       "elements with a pristine verdict")
 )
 ```
 
