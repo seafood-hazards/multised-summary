@@ -49,3 +49,34 @@ th { white-space: nowrap; }
    content width rather than whatever intrinsic size the renderer picked. */
 .cell .mermaid-js { text-align: center; }
 .cell .mermaid-js svg { max-width: 100%; height: auto; }
+
+/* Map legend. The class names are the ones the refined site's maps use, so the
+   two sites' legends stay recognisably the same object. Both colour scales here
+   are continuous, so this one is a gradient bar rather than a list of swatches. */
+.legend {
+  background: #fff;
+  padding: 8px 10px;
+  border-radius: 5px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .3);
+  font-size: 12px; line-height: 1.45; color: #333;
+}
+.legend-title { font-weight: 600; }
+.legend-sub { font-size: 11px; color: #666; margin-bottom: 4px; }
+.legend-barwrap { position: relative; width: 170px; }
+/* Room above the bar for the Igeo zero label, which sits over its tick. */
+.legend-barwrap.has-zero { margin-top: 15px; }
+.legend-bar { height: 12px; border-radius: 2px; border: 1px solid #ccc; }
+.legend-zero {
+  position: absolute; top: -2px; bottom: -2px; width: 0;
+  border-left: 1px solid #222;
+}
+.legend-zero span {
+  position: absolute; bottom: calc(100% + 2px); left: 0;
+  transform: translateX(-50%);
+  font-size: 10px; line-height: 1; color: #333;
+}
+.legend-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10.5px; color: #555; margin-top: 2px; width: 170px;
+}
+.legend-note { font-size: 10.5px; color: #666; margin-top: 5px; max-width: 170px; }
