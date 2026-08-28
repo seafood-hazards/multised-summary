@@ -224,14 +224,24 @@ e_ct |>
 #| include: false
 grid_path <- file.path(sdir, "summary_map_grid.csv")
 g <- read.csv(grid_path, stringsAsFactors = FALSE)
-g <- g[g$symbol == SYM & g$cat == "bulk",
-       c("lat", "lon", "n", "value_p50", "igeo_p50", "pct_below_p90")]
+g <- g[g$symbol == SYM & g$cat %in% cat_order,
+       c("cat", "lat", "lon", "n", "value_p50", "igeo_p50")]
+g <- g[order(match(g$cat, cat_order)), ]
 if (!nrow(g)) g <- g[0, ]
 ojs_define(mapdata = g)
 map_has_points <- nrow(g) > 0
+# All three fractions, drawn one at a time. Every other table on this page reports
+# the three side by side; the map was the one place the sieved samples vanished.
+# What must not happen is a shared colour scale across them, so each fraction is
+# scaled on its own cells and the page says the colours are not comparable.
+map_fracs <- data.frame(cat = intersect(cat_order, unique(g$cat)),
+                        stringsAsFactors = FALSE)
+map_fracs$label <- unname(cat_label[map_fracs$cat])
+ojs_define(map_fracs = map_fracs)
 # Igeo needs a background, and a withheld element has none, so the grid carries no
 # Igeo for it. Offering a colour scale that would paint every cell grey is worse
-# than not offering it.
+# than not offering it. The withholding is per element, not per fraction, so this
+# one flag covers whichever fraction is being shown.
 map_has_igeo <- map_has_points && any(!is.na(g$igeo_p50))
 # A withheld element publishes no concentration anywhere else on this page. A cell
 # median of what cleared the detection limit is the upper tail the section above
@@ -246,7 +256,7 @@ ojs_define(map_withheld = map_withheld)
 ```{r}
 #| output: asis
 #| eval: !expr isFALSE(map_has_points)
-cat("There is no bulk-sediment map for this element: too few measurements.\n")
+cat("There is no map for this element: too few measurements.\n")
 ```
 
 ```{=html}
@@ -257,7 +267,20 @@ cat("There is no bulk-sediment map for this element: too few measurements.\n")
 //| echo: false
 //| eval: true
 L = require("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
-pts = transpose(mapdata)
+allpts = transpose(mapdata)
+fracs = transpose(map_fracs)
+pts = allpts.filter(d => d.cat === frac)
+frac_label = (fracs.find(o => o.cat === frac) ?? {}).label ?? ""
+```
+
+```{ojs}
+//| echo: false
+// Which fraction to draw. Only the fractions this element actually has are
+// offered, so iodine gets bulk and sieved <63 um and no empty third button.
+viewof frac = fracs.length
+  ? Inputs.radio(new Map(fracs.map(o => [o.label, o.cat])),
+                 { value: fracs[0].cat, label: "Fraction" })
+  : Object.assign(html`<span></span>`, { value: "bulk" })
 ```
 
 ```{ojs}
@@ -352,6 +375,7 @@ mapDiv = {
   const legendBody = () => {
     if (map_withheld) {
       return `<div class="legend-title">Where it was measured</div>` +
+             `<div class="legend-sub">${frac_label}</div>` +
              `<div class="legend-row">` +
                `<span class="legend-swatch" style="background:${PLAIN}"></span>` +
                `<span>Cells with data</span>` +
@@ -365,7 +389,8 @@ mapDiv = {
     // gets a tick at its true position, which is not the middle of the bar.
     const zeroPct = 100 * (0 - barLo) / (barHi - barLo);
     return `<div class="legend-title">${isIgeo ? "Enrichment (Igeo)" : "Median concentration"}</div>` +
-      `<div class="legend-sub">${isIgeo ? "0 = at the natural background" : map_unit}</div>` +
+      `<div class="legend-sub">${frac_label}, ` +
+        `${isIgeo ? "0 = at the natural background" : map_unit}</div>` +
       `<div class="legend-barwrap${isIgeo ? " has-zero" : ""}">` +
         `<div class="legend-bar" style="background:linear-gradient(to right,${stops.join(",")})"></div>` +
         (isIgeo ? `<div class="legend-zero" style="left:${zeroPct}%"><span>0</span></div>` : "") +
@@ -421,12 +446,21 @@ if (map_withheld) {
       "everything else sits in. Cells are summaries: a cell containing both clean and ",
       "enriched sites shows the middle of them.", sep = "")
 }
-cat(" The map opens on the region where this element was measured, which differs from ",
-    "element to element; the house button returns to that view.\n\n", sep = "")
+cat(" The map opens on the region where the fraction on show was measured, which ",
+    "differs from fraction to fraction; the house button returns to that view.\n\n",
+    sep = "")
 
-cat("Bulk sediment only. The sieved fractions are measured and published, but they ",
-    "are a different material and ",
-    if (map_withheld) "are not drawn here." else
-      "cannot be drawn on the same colour scale.",
-    "\n\n", sep = "")
+if (nrow(map_fracs) > 1) {
+  cat("The fractions are drawn one at a time")
+  if (map_withheld) {
+    cat(". Switching between them changes which samples are on the map, and ",
+        "nothing else.\n\n", sep = "")
+  } else {
+    cat(", each scaled on its own cells. They are different materials, so the ",
+        "colours do not carry across: a cell that reads dark in bulk and pale in a ",
+        "sieved fraction is telling you about the two scales, not about the ",
+        "sediment. Compare a fraction with itself across the map, never one ",
+        "fraction's colour with another's.\n\n", sep = "")
+  }
+}
 ```
