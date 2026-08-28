@@ -32,7 +32,7 @@ tibble::tribble(
   "Offshore", "Sediment more than 10 km from the coast is little affected by land", "Offshore does not mean clean: some of it is monitored precisely because it is contaminated",
   "Percentiles", "The low end of the distribution is the natural end", "If most samples are polluted, the low end is polluted too",
   "Mixture", "Natural and enriched samples form two distinguishable populations", "Only works where the two are actually separable",
-  "Grain-size normalised", "Compare like with like after correcting for mud content", "Needs grain size, which most samples lack",
+  "Grain-size normalised", "Compare like with like after correcting for mud content", "Needs the measured mud fraction, which most samples lack, and which describes the sediment as collected, so it applies to bulk only",
   "Pressure bands", "Sediment far from a known source is closer to natural", "Distance is a proxy: other sources exist"
 ) |> kable()
 ```
