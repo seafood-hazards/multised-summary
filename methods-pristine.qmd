@@ -53,6 +53,11 @@ normaliser, so it does not correct for grain size at all: in bulk sediment it
 tracks the mud content of a sample closely enough that a verdict built on it would
 be partly a verdict about texture. A muddy natural seabed would read as polluted.
 
+In the sieved fractions that objection falls away, since the sieve has already done
+the correcting. The reason there is a different one: the strict rule already asks
+whether the sample sits below its own offshore population, which is the comparison
+Igeo makes, so the index would add a scale rather than an answer.
+
 So Igeo appears throughout this site, on the element pages, on the maps and in the
 downloadable data, as a second reading to set beside the verdict. **No pristine
 verdict uses it, and it plays no part in what is submitted.** The
