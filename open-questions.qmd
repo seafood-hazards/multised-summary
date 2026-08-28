@@ -9,6 +9,11 @@ The rest of this site reports what the data supports. This page is the other lis
 the questions we know are open. None of them changes what is reported here today,
 and none of them is a commitment to do the work.
 
+They fall into four kinds, and the first kind is not like the other three: those
+questions could change what is already published, while the rest would extend it.
+
+## Is the answer right?
+
 ### 1. Are too many samples called pristine?
 
 The pristine verdict is a set of thresholds, and the concentration thresholds are
@@ -34,6 +39,11 @@ with nothing said about which side the measurement uncertainty would put it on.
 Reporting a probability rather than a yes or no would be more honest about the
 marginal cases, and would let the maps show the clear results apart from the
 close ones.
+
+## What the database already holds and does not use
+
+Three questions that need no new sampling. The measurements exist; what is missing
+is a way to get an answer out of them.
 
 ### 4. Can the values below the detection limit be recovered?
 
@@ -62,6 +72,12 @@ layers and the merged analyses look at them, but the background here is still
 estimated across space rather than down a core. A local pre-industrial layer would
 be a different kind of reference, and possibly a better one, because it controls
 for place exactly rather than statistically.
+
+## Judging more of the seabed, and judging it more fairly
+
+Most of the seabed cannot be judged at all, and some of what can be judged is
+measured against a reference that does not resemble it. These four are different
+routes at that same wall, and only one of them has to work.
 
 ### 7. Is aluminium the only possible normaliser?
 
@@ -99,6 +115,8 @@ reference sits largely in the southern North Sea rather than in Norwegian waters
 Grouping them by region before setting a background would compare each sample with
 sediment it resembles. The cost is a smaller reference behind every group, and
 below some size a regional background is worse than a distant one.
+
+## Working with the data
 
 ### 11. Should there be a way to enter new data by hand?
 
