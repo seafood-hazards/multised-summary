@@ -230,6 +230,11 @@ g <- g[g$symbol == SYM & g$cat %in% cat_order,
          "pristine_class")]
 g <- g[order(match(g$cat, cat_order)), ]
 if (!nrow(g)) g <- g[0, ]
+# the module writes NA as an empty field and read.csv hands it back as "", so this
+# has to run BEFORE the frame is handed over: a fraction with no verdict is one
+# where nothing could be judged, and that is what its cells should say.
+blank <- is.na(g$pristine_class) | !nzchar(g$pristine_class)
+g$pristine_class[blank] <- "unclassified"
 ojs_define(mapdata = g)
 map_has_points <- nrow(g) > 0
 # All three fractions, drawn one at a time. Every other table on this page reports
@@ -250,9 +255,29 @@ map_has_igeo <- map_has_points && any(!is.na(g$igeo_p50))
 # fraction is on show. A group with no verdict carries no class at all, which is
 # not the same as a cell whose sites could not be classified.
 # the module writes NA as an empty field, and read.csv hands that back as "" rather
-# than NA, so an emptiness test alone would offer a pristine layer for a fraction
-# that has no verdict and then draw an empty map under it.
-map_pristine_cats <- unique(g$cat[!is.na(g$pristine_class) & nzchar(g$pristine_class)])
+# than NA. A fraction with no verdict is not an absence to hide: every cell in it
+# is one nobody could judge, which is the same statement the grey cells make on a
+# fraction that does have one, and it is worth drawing.
+map_pristine_cats <- if (any(e_rows$withheld)) character(0) else
+  intersect(cat_order, unique(g$cat))
+# which fractions are judged by an enrichment factor, for the prose below: the
+# reason bulk is mostly unjudged (aluminium is rarely measured) is not the reason
+# manganese bulk is entirely unjudged (aluminium does not predict it).
+map_ef_cats <- unique(g$cat[g$verdict_basis %in% "ef"])
+# why a fraction has no verdict at all, in one clause, for the legend. Read from
+# the flags the elements table already carries rather than restated here.
+map_no_verdict <- data.frame(
+  cat = intersect(cat_order, unique(g$cat)),
+  stringsAsFactors = FALSE)
+map_no_verdict$reason <- vapply(map_no_verdict$cat, function(cc) {
+  r <- e_rows[e_rows$cat == cc, , drop = FALSE]
+  if (!nrow(r) || isTRUE(r$has_verdict[1])) return("")
+  if (!isTRUE(r$has_background[1]))
+    "There is no background for this fraction, so there is nothing to judge against."
+  else
+    "Aluminium does not predict this element in bulk, so it has no enrichment factor and no verdict here."
+}, character(1), USE.NAMES = FALSE)
+ojs_define(map_no_verdict = map_no_verdict)
 ojs_define(map_pristine_cats = data.frame(cat = map_pristine_cats,
                                           stringsAsFactors = FALSE))
 # A withheld element publishes no concentration anywhere else on this page. A cell
@@ -298,6 +323,10 @@ viewof frac = fracs.length
 ```{ojs}
 //| echo: false
 pristine_cats = transpose(map_pristine_cats).map(o => o.cat)
+no_verdict_reason = {
+  const r = transpose(map_no_verdict).find(o => o.cat === frac);
+  return r && r.reason ? r.reason : "";
+}
 
 // The options follow the fraction on show, because the verdict does: manganese is
 // judged in the sieved fractions and not in bulk. Switching fraction rebuilds this
@@ -418,17 +447,27 @@ mapDiv = {
       // only the classes this fraction actually has. A sieved fraction has no
       // enrichment factor, so its cells can never carry the EF class and its
       // legend can never name one.
+      // a fraction with no verdict has no basis, and every cell in it is grey. Its
+      // legend says why rather than showing an unexplained wall of one colour.
+      const label = k => basis ? PR[k][basis] : PR[k].ef;
       const present = PR_ORDER.filter(k =>
-        PR[k][basis] && pts.some(d => d.pristine_class === k));
+        (k === "unclassified" || (basis && PR[k][basis])) &&
+        pts.some(d => d.pristine_class === k));
       return `<div class="legend-title">Pristine verdict</div>` +
              `<div class="legend-sub">${frac_label}, by cell</div>` +
              present.map(k =>
                `<div class="legend-row">` +
-                 `<span class="legend-swatch" style="background:${PR[k].colour}"></span>` +
-                 `<span>${PR[k][basis] ?? PR[k].ef}</span>` +
+                 `<span class="legend-swatch${k === "unclassified" ? " faint" : ""}" ` +
+                   `style="background:${PR[k].colour}"></span>` +
+                 `<span${k === "unclassified" ? ' class="legend-faint"' : ""}>` +
+                   `${label(k)}</span>` +
                `</div>`).join("") +
-             `<div class="legend-note">A cell takes the strictest class a majority ` +
-             `of its sites meet. Grey is a gap in the data, not a clean result.</div>`;
+             `<div class="legend-note">` +
+               (no_verdict_reason
+                 ? no_verdict_reason
+                 : "A cell takes the strictest class a majority of its sites meet. " +
+                   "Grey is a gap in the data, not a clean result.") +
+             `</div>`;
     }
     if (map_withheld) {
       return `<div class="legend-title">Where it was measured</div>` +
@@ -470,13 +509,26 @@ mapDiv = {
   new LegendControl().addTo(map);
 
   const canvas = L.canvas({ padding: 0.5 });
-  for (const d of pts) {
+  // the unjudged cells go down first so the ones carrying a verdict sit above
+  // them: on the bulk maps grey outnumbers everything else four to one, and drawn
+  // last it would bury the result the map exists to show.
+  const rank = { unclassified: 0, not: 1, ef: 2, strict: 3 };
+  const drawn = isPristine
+    ? pts.slice().sort((a, b) => (rank[a.pristine_class] ?? 0) -
+                                 (rank[b.pristine_class] ?? 0))
+    : pts;
+
+  for (const d of drawn) {
     const v = d[layer];
     if (isPristine ? !PR[d.pristine_class]
                    : (!map_withheld && (v === null || isNaN(v)))) continue;
     const fill = isPristine   ? PR[d.pristine_class].colour
                : map_withheld ? PLAIN
                               : ramp(v);
+    // an unjudged cell is a fact about the data, not a result, so it is drawn
+    // small and faint: present if looked for, and never the thing the eye reads
+    // first.
+    const faint = isPristine && d.pristine_class === "unclassified";
     // the composition, not just the class the majority produced: a cell reported
     // pristine over sites that mostly could not be judged is a different object
     // from one where every site was judged and passed.
@@ -493,8 +545,12 @@ mapDiv = {
           `Igeo: ${d.igeo_p50 ?? "n/a"}<br>`) +
         `measurements: ${d.n}`;
     L.circleMarker([d.lat, d.lon], {
-      renderer: canvas, radius: 4, weight: 0.4, color: "#333",
-      fillColor: fill, fillOpacity: 0.85
+      renderer: canvas,
+      radius: faint ? 2.5 : 4,
+      weight: faint ? 0 : 0.4,
+      color: "#333",
+      fillColor: fill,
+      fillOpacity: faint ? 0.3 : 0.85
     }).bindPopup(
       `<b>${d.lat.toFixed(1)}, ${d.lon.toFixed(1)}</b><br>` + popup
     ).addTo(map);
@@ -526,13 +582,14 @@ if (length(map_pristine_cats)) {
   cat("Colouring by **Pristine** shows the verdict rather than the level: a cell ",
       "takes the strictest class that a majority of its sites meet, and the popup ",
       "gives the composition behind it. ", sep = "")
-  if ("bulk" %in% map_pristine_cats) {
+  if ("bulk" %in% map_ef_cats) {
     cat("In bulk sediment most cells cannot be judged at all, because the verdict ",
         "needs aluminium measured beside the metal and aluminium is rarely there ",
-        "near the coast or near a fish farm. **A grey cell means the sediment could ",
-        "not be judged, not that it was judged clean.** ", sep = "")
+        "near the coast or near a fish farm. ", sep = "")
   }
-  cat("\n\n")
+  cat("**A grey cell means the sediment could not be judged, not that it was judged ",
+      "clean.** Grey is drawn small and faint so the cells that carry a verdict stay ",
+      "visible, which on some maps means most of the map is faint.\n\n", sep = "")
 }
 
 if (nrow(map_fracs) > 1) {
