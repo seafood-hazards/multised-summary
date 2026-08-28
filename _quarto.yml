@@ -45,10 +45,10 @@ website:
             href: element-se.qmd
           - text: "Iodine (I)"
             href: element-i.qmd
-      - text: "Downloads"
-        href: downloads.qmd
       - text: "Open Questions"
         href: open-questions.qmd
+      - text: "Downloads"
+        href: downloads.qmd
   page-footer:
     center: "Institute of Marine Research | Built from the multised refined database"
 
