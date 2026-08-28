@@ -47,6 +47,8 @@ website:
             href: element-i.qmd
       - text: "Downloads"
         href: downloads.qmd
+      - text: "Open Questions"
+        href: open-questions.qmd
   page-footer:
     center: "Institute of Marine Research | Built from the multised refined database"
 
