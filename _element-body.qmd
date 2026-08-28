@@ -225,7 +225,9 @@ e_ct |>
 grid_path <- file.path(sdir, "summary_map_grid.csv")
 g <- read.csv(grid_path, stringsAsFactors = FALSE)
 g <- g[g$symbol == SYM & g$cat %in% cat_order,
-       c("cat", "lat", "lon", "n", "value_p50", "igeo_p50")]
+       c("cat", "lat", "lon", "n", "value_p50", "igeo_p50", "n_sites",
+         "n_sites_class", "n_sites_strict", "n_sites_ef", "verdict_basis",
+         "pristine_class")]
 g <- g[order(match(g$cat, cat_order)), ]
 if (!nrow(g)) g <- g[0, ]
 ojs_define(mapdata = g)
@@ -243,6 +245,16 @@ ojs_define(map_fracs = map_fracs)
 # than not offering it. The withholding is per element, not per fraction, so this
 # one flag covers whichever fraction is being shown.
 map_has_igeo <- map_has_points && any(!is.na(g$igeo_p50))
+# The pristine layer exists per fraction, not per element: manganese has a verdict
+# in the sieved fractions and none in bulk, so the option has to follow whichever
+# fraction is on show. A group with no verdict carries no class at all, which is
+# not the same as a cell whose sites could not be classified.
+# the module writes NA as an empty field, and read.csv hands that back as "" rather
+# than NA, so an emptiness test alone would offer a pristine layer for a fraction
+# that has no verdict and then draw an empty map under it.
+map_pristine_cats <- unique(g$cat[!is.na(g$pristine_class) & nzchar(g$pristine_class)])
+ojs_define(map_pristine_cats = data.frame(cat = map_pristine_cats,
+                                          stringsAsFactors = FALSE))
 # A withheld element publishes no concentration anywhere else on this page. A cell
 # median of what cleared the detection limit is the upper tail the section above
 # warns about, so the map keeps the cells and drops the colour scale: it says where
@@ -285,13 +297,24 @@ viewof frac = fracs.length
 
 ```{ojs}
 //| echo: false
+pristine_cats = transpose(map_pristine_cats).map(o => o.cat)
+
+// The options follow the fraction on show, because the verdict does: manganese is
+// judged in the sieved fractions and not in bulk. Switching fraction rebuilds this
+// radio, which resets it to concentration; that is the honest behaviour when the
+// choices themselves have changed.
+colour_opts = {
+  const o = [["Concentration", "value_p50"]];
+  if (map_has_igeo) o.push(["Enrichment (Igeo)", "igeo_p50"]);
+  if (pristine_cats.includes(frac)) o.push(["Pristine", "pristine_class"]);
+  return o;
+}
+
 // The placeholder has to carry a value. Generators.input never yields for an
 // element that has none, so `chosen` would stay pending for ever, and every cell
 // downstream of it, the map included, would silently never run.
-viewof chosen = map_has_igeo
-  ? Inputs.radio(
-      new Map([["Concentration", "value_p50"], ["Enrichment (Igeo)", "igeo_p50"]]),
-      { value: "value_p50", label: "Colour by" })
+viewof chosen = colour_opts.length > 1
+  ? Inputs.radio(new Map(colour_opts), { value: "value_p50", label: "Colour by" })
   : Object.assign(html`<span></span>`, { value: "value_p50" })
 layer = chosen
 ```
@@ -347,8 +370,26 @@ mapDiv = {
   // One colour for a withheld element, a scale for everything else. Cells still
   // mark where the element was measured; what is dropped is the number.
   const PLAIN = "#3f7fb5";
+  // The pristine layer is a verdict, not a level, so it is drawn as classes. The
+  // order is best to worst and grey is last on purpose: on the bulk maps grey is
+  // the commonest cell by far, and it means the sediment could not be judged, not
+  // that it was judged clean.
+  const PR_ORDER = ["strict", "ef", "not", "unclassified"];
+  const PR = {
+    strict:       { colour: "#1a7a3c",
+                    ef: "Pristine (strict)", conservative: "Pristine (conservative)" },
+    ef:           { colour: "#7cc47f",
+                    ef: "Pristine (EF < 1)", conservative: null },
+    not:          { colour: "#e08214",
+                    ef: "Not pristine", conservative: "Not pristine" },
+    unclassified: { colour: "#b4b4b4",
+                    ef: "Cannot be classified", conservative: "Cannot be classified" }
+  };
+  const isPristine = layer === "pristine_class";
+  const basis = pts.length ? pts[0].verdict_basis : null;
+
   let ramp = null, isIgeo = false, barLo = null, barHi = null;
-  if (!map_withheld) {
+  if (!map_withheld && !isPristine) {
     const vals = pts.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
     if (!vals.length) return;
     const sorted = vals.slice().sort((a, b) => a - b);
@@ -373,6 +414,22 @@ mapDiv = {
                  : Math.abs(v) >= 10  ? v.toFixed(1)
                  : v.toFixed(2);
   const legendBody = () => {
+    if (isPristine) {
+      // only the classes this fraction actually has. A sieved fraction has no
+      // enrichment factor, so its cells can never carry the EF class and its
+      // legend can never name one.
+      const present = PR_ORDER.filter(k =>
+        PR[k][basis] && pts.some(d => d.pristine_class === k));
+      return `<div class="legend-title">Pristine verdict</div>` +
+             `<div class="legend-sub">${frac_label}, by cell</div>` +
+             present.map(k =>
+               `<div class="legend-row">` +
+                 `<span class="legend-swatch" style="background:${PR[k].colour}"></span>` +
+                 `<span>${PR[k][basis] ?? PR[k].ef}</span>` +
+               `</div>`).join("") +
+             `<div class="legend-note">A cell takes the strictest class a majority ` +
+             `of its sites meet. Grey is a gap in the data, not a clean result.</div>`;
+    }
     if (map_withheld) {
       return `<div class="legend-title">Where it was measured</div>` +
              `<div class="legend-sub">${frac_label}</div>` +
@@ -415,16 +472,31 @@ mapDiv = {
   const canvas = L.canvas({ padding: 0.5 });
   for (const d of pts) {
     const v = d[layer];
-    if (!map_withheld && (v === null || isNaN(v))) continue;
+    if (isPristine ? !PR[d.pristine_class]
+                   : (!map_withheld && (v === null || isNaN(v)))) continue;
+    const fill = isPristine   ? PR[d.pristine_class].colour
+               : map_withheld ? PLAIN
+                              : ramp(v);
+    // the composition, not just the class the majority produced: a cell reported
+    // pristine over sites that mostly could not be judged is a different object
+    // from one where every site was judged and passed.
+    const nUnclass = d.n_sites - d.n_sites_class;
+    const popup = isPristine
+      ? `sites: ${d.n_sites}<br>` +
+        `pristine (strict): ${d.n_sites_strict}<br>` +
+        (basis === "ef"
+          ? `pristine (EF < 1) only: ${d.n_sites_ef - d.n_sites_strict}<br>` : "") +
+        `not pristine: ${d.n_sites_class - d.n_sites_ef}<br>` +
+        `no verdict possible: ${nUnclass}`
+      : (map_withheld ? "" :
+          `median: ${d.value_p50} ${map_unit}<br>` +
+          `Igeo: ${d.igeo_p50 ?? "n/a"}<br>`) +
+        `measurements: ${d.n}`;
     L.circleMarker([d.lat, d.lon], {
       renderer: canvas, radius: 4, weight: 0.4, color: "#333",
-      fillColor: map_withheld ? PLAIN : ramp(v), fillOpacity: 0.85
+      fillColor: fill, fillOpacity: 0.85
     }).bindPopup(
-      `<b>${d.lat.toFixed(1)}, ${d.lon.toFixed(1)}</b><br>` +
-      (map_withheld ? "" :
-        `median: ${d.value_p50} ${map_unit}<br>` +
-        `Igeo: ${d.igeo_p50 ?? "n/a"}<br>`) +
-      `measurements: ${d.n}`
+      `<b>${d.lat.toFixed(1)}, ${d.lon.toFixed(1)}</b><br>` + popup
     ).addTo(map);
   }
 }
@@ -449,6 +521,19 @@ if (map_withheld) {
 cat(" The map opens on the region where the fraction on show was measured, which ",
     "differs from fraction to fraction; the house button returns to that view.\n\n",
     sep = "")
+
+if (length(map_pristine_cats)) {
+  cat("Colouring by **Pristine** shows the verdict rather than the level: a cell ",
+      "takes the strictest class that a majority of its sites meet, and the popup ",
+      "gives the composition behind it. ", sep = "")
+  if ("bulk" %in% map_pristine_cats) {
+    cat("In bulk sediment most cells cannot be judged at all, because the verdict ",
+        "needs aluminium measured beside the metal and aluminium is rarely there ",
+        "near the coast or near a fish farm. **A grey cell means the sediment could ",
+        "not be judged, not that it was judged clean.** ", sep = "")
+  }
+  cat("\n\n")
+}
 
 if (nrow(map_fracs) > 1) {
   cat("The fractions are drawn one at a time")
