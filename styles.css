@@ -87,3 +87,7 @@ th { white-space: nowrap; }
   width: 12px; height: 12px; border-radius: 50%;
   border: 1px solid #333; display: inline-block;
 }
+/* Unjudged cells on the pristine layer: present, but never the first thing read.
+   The legend swatch matches how the map draws them. */
+.legend-swatch.faint { width: 8px; height: 8px; opacity: .45; border-color: #999; }
+.legend-faint { color: #777; }
