@@ -86,9 +86,11 @@ sediment. Every result on this site is reported separately for bulk, for the
 fraction below 63 um and for the fraction below 20 um, and no average is ever taken
 across them.
 
-One consequence is worth knowing early: the pristine verdict is issued for bulk
-sediment only, because a sieved sample is already grain-size corrected and cannot
-be corrected again. See
+One consequence is worth knowing early: because the two fractions have their grain
+size controlled in different ways, they are judged by different criteria. Bulk
+sediment is corrected using aluminium; a sieved sample was corrected by the sieve
+before it was analysed, so it is judged on concentration alone. Both can carry a
+pristine verdict, and for manganese only the sieved one does. See
 [Estimation of Pristine Sediment](methods-pristine.qmd#the-sieved-samples-are-judged-on-the-sieve).
 :::
 
