@@ -1,0 +1,77 @@
+---
+title: "Open Questions"
+subtitle: "What is not settled, and what would have to change to settle it"
+---
+
+{{< include _setup.qmd >}}
+
+The rest of this site reports what the data supports. This page is the other list:
+the questions we know are open. None of them changes what is reported here today,
+and none of them is a commitment to do the work.
+
+### 1. Are too many samples called pristine?
+
+The pristine verdict is a set of thresholds, and the concentration thresholds are
+cut from the offshore data itself. Offshore is not the same as clean. If the
+reference already carries a regional signal then the bar sits too low and the
+pristine share flatters the seabed. Nothing here tests the verdict against a
+baseline that was derived some other way. See
+[Estimation of Pristine Sediment](methods-pristine.qmd).
+
+### 2. Should the sieved fractions be grouped by region first?
+
+The sieved samples are judged against a single offshore reference, and that
+reference sits largely in the southern North Sea rather than in Norwegian waters.
+Grouping them by region before setting a background would compare each sample with
+sediment it resembles. The cost is a smaller reference behind every group, and
+below some size a regional background is worse than a distant one.
+
+### 3. Does interpolation work for some elements?
+
+The maps draw cells that hold data and leave the space between them blank. Where
+sampling is dense and the chemistry varies smoothly, filling that space would give
+a continuous surface instead of a scatter of cells. Where it is sparse it would
+invent detail that was never measured. Which elements, if any, are dense enough is
+an open question; only copper and zinc have anything like the coverage it would
+need.
+
+### 4. Can the repeat visits be used for more?
+
+Many places have been sampled more than once, and the database groups those
+repeats. So far they are used only to describe where repeat-sampled places are,
+which mattered because they turn out to sit close to fish farms. They could also
+give something the background estimates currently lack: a measure of how much two
+visits to the same place disagree, which is the floor under any claim that two
+places differ.
+
+### 5. Can the layers of a multicorer be used?
+
+A multicorer brings up several layers from one spot, and the deeper layers were
+laid down before most industrial input. The database records the depth of the
+layers and the merged analyses look at them, but the background here is still
+estimated across space rather than down a core. A local pre-industrial layer would
+be a different kind of reference, and possibly a better one, because it controls
+for place exactly rather than statistically.
+
+### 6. Can a clean location count for more than one element?
+
+Each element is judged on its own, and a place that is pristine for copper is not
+automatically pristine for zinc. But most of what stops an element being judged is
+a missing normaliser rather than a missing measurement, so a location that comes
+out clean where the data are good might stand in where they are not. Whether that
+is a fair inference or a circular one is not settled. This is the largest of the
+open questions, because it is the one that would close the coverage gap described
+under [The verdict, and its cost](methods-pristine.qmd#the-verdict-and-its-cost).
+
+### 7. Should there be a way to enter new data by hand?
+
+Everything here is rebuilt from five external exports, and a rebuild overwrites
+whatever was there before. There is no form for adding a measurement and no
+validation path for one. Whether the project should accept direct entry at all,
+and where it would live if it did, has not been decided.
+
+---
+
+The workings behind every answer this site does give are on the
+[detailed analysis site](`r REFINED`/). Comments and corrections are welcome
+through the repository linked in the top right.
