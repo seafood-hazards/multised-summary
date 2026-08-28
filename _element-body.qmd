@@ -233,8 +233,14 @@ map_has_points <- nrow(g) > 0
 # Igeo for it. Offering a colour scale that would paint every cell grey is worse
 # than not offering it.
 map_has_igeo <- map_has_points && any(!is.na(g$igeo_p50))
+# A withheld element publishes no concentration anywhere else on this page. A cell
+# median of what cleared the detection limit is the upper tail the section above
+# warns about, so the map keeps the cells and drops the colour scale: it says where
+# the element was measured and nothing about how much of it was there.
+map_withheld <- any(e_rows$withheld)
 ojs_define(map_unit = UNIT)
 ojs_define(map_has_igeo = map_has_igeo)
+ojs_define(map_withheld = map_withheld)
 ```
 
 ```{r}
@@ -256,12 +262,15 @@ pts = transpose(mapdata)
 
 ```{ojs}
 //| echo: false
+// The placeholder has to carry a value. Generators.input never yields for an
+// element that has none, so `chosen` would stay pending for ever, and every cell
+// downstream of it, the map included, would silently never run.
 viewof chosen = map_has_igeo
   ? Inputs.radio(
       new Map([["Concentration", "value_p50"], ["Enrichment (Igeo)", "igeo_p50"]]),
       { value: "value_p50", label: "Colour by" })
-  : html`<span></span>`
-layer = map_has_igeo ? chosen : "value_p50"
+  : Object.assign(html`<span></span>`, { value: "value_p50" })
+layer = chosen
 ```
 
 ```{ojs}
@@ -312,17 +321,26 @@ mapDiv = {
   });
   new HomeControl().addTo(map);
 
-  const vals = pts.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
-  if (!vals.length) return;
-  const sorted = vals.slice().sort((a, b) => a - b);
-  const q = p => sorted[Math.floor(p * (sorted.length - 1))];
-  const lo = q(0.05), hi = q(0.95);
-  // Diverging around zero for Igeo, sequential for concentration. Igeo is a log2
-  // index whose zero point is "at background", so a scale that does not mark zero
-  // would hide the only threshold that means anything.
-  const ramp = layer === "igeo_p50"
-    ? d3.scaleDiverging(d3.interpolateRdBu).domain([Math.max(2, hi), 0, Math.min(-2, lo)])
-    : d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
+  // One colour for a withheld element, a scale for everything else. Cells still
+  // mark where the element was measured; what is dropped is the number.
+  const PLAIN = "#3f7fb5";
+  let ramp = null, isIgeo = false, barLo = null, barHi = null;
+  if (!map_withheld) {
+    const vals = pts.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
+    if (!vals.length) return;
+    const sorted = vals.slice().sort((a, b) => a - b);
+    const q = p => sorted[Math.floor(p * (sorted.length - 1))];
+    const lo = q(0.05), hi = q(0.95);
+    isIgeo = layer === "igeo_p50";
+    // Diverging around zero for Igeo, sequential for concentration. Igeo is a log2
+    // index whose zero point is "at background", so a scale that does not mark zero
+    // would hide the only threshold that means anything.
+    ramp = isIgeo
+      ? d3.scaleDiverging(d3.interpolateRdBu).domain([Math.max(2, hi), 0, Math.min(-2, lo)])
+      : d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
+    barLo = isIgeo ? Math.min(-2, lo) : lo;
+    barHi = isIgeo ? Math.max(2, hi) : hi;
+  }
 
   // The legend. Colour is the only thing on this map carrying a value, so it has
   // to be readable without the popups. The bar is sampled from the same ramp the
@@ -331,30 +349,38 @@ mapDiv = {
   const fmt = v => Math.abs(v) >= 100 ? v.toFixed(0)
                  : Math.abs(v) >= 10  ? v.toFixed(1)
                  : v.toFixed(2);
-  const isIgeo = layer === "igeo_p50";
-  const barLo = isIgeo ? Math.min(-2, lo) : lo;
-  const barHi = isIgeo ? Math.max(2, hi) : hi;
-  const stops = d3.range(0, 1.0001, 1 / 32)
-                  .map(t => ramp(barLo + t * (barHi - barLo)));
-  // Igeo zero is the only threshold on either scale that means anything, so it
-  // gets a tick at its true position, which is not the middle of the bar.
-  const zeroPct = 100 * (0 - barLo) / (barHi - barLo);
+  const legendBody = () => {
+    if (map_withheld) {
+      return `<div class="legend-title">Where it was measured</div>` +
+             `<div class="legend-row">` +
+               `<span class="legend-swatch" style="background:${PLAIN}"></span>` +
+               `<span>Cells with data</span>` +
+             `</div>` +
+             `<div class="legend-note">Concentrations are not mapped for this ` +
+             `element. See "Why this element is withheld" above.</div>`;
+    }
+    const stops = d3.range(0, 1.0001, 1 / 32)
+                    .map(t => ramp(barLo + t * (barHi - barLo)));
+    // Igeo zero is the only threshold on either scale that means anything, so it
+    // gets a tick at its true position, which is not the middle of the bar.
+    const zeroPct = 100 * (0 - barLo) / (barHi - barLo);
+    return `<div class="legend-title">${isIgeo ? "Enrichment (Igeo)" : "Median concentration"}</div>` +
+      `<div class="legend-sub">${isIgeo ? "0 = at the natural background" : map_unit}</div>` +
+      `<div class="legend-barwrap${isIgeo ? " has-zero" : ""}">` +
+        `<div class="legend-bar" style="background:linear-gradient(to right,${stops.join(",")})"></div>` +
+        (isIgeo ? `<div class="legend-zero" style="left:${zeroPct}%"><span>0</span></div>` : "") +
+      `</div>` +
+      `<div class="legend-labels"><span>${fmt(barLo)}</span><span>${fmt(barHi)}</span></div>` +
+      `<div class="legend-note">` +
+        (isIgeo ? "Blue is at or below background, red is above it. " : "") +
+        `Cells past either end take the end colour.</div>`;
+  };
 
   const LegendControl = L.Control.extend({
     options: { position: "bottomright" },
     onAdd() {
       const d = L.DomUtil.create("div", "legend");
-      d.innerHTML =
-        `<div class="legend-title">${isIgeo ? "Enrichment (Igeo)" : "Median concentration"}</div>` +
-        `<div class="legend-sub">${isIgeo ? "0 = at the natural background" : map_unit}</div>` +
-        `<div class="legend-barwrap${isIgeo ? " has-zero" : ""}">` +
-          `<div class="legend-bar" style="background:linear-gradient(to right,${stops.join(",")})"></div>` +
-          (isIgeo ? `<div class="legend-zero" style="left:${zeroPct}%"><span>0</span></div>` : "") +
-        `</div>` +
-        `<div class="legend-labels"><span>${fmt(barLo)}</span><span>${fmt(barHi)}</span></div>` +
-        `<div class="legend-note">` +
-          (isIgeo ? "Blue is at or below background, red is above it. " : "") +
-          `Cells past either end take the end colour.</div>`;
+      d.innerHTML = legendBody();
       L.DomEvent.disableClickPropagation(d);
       return d;
     }
@@ -364,27 +390,43 @@ mapDiv = {
   const canvas = L.canvas({ padding: 0.5 });
   for (const d of pts) {
     const v = d[layer];
-    if (v === null || isNaN(v)) continue;
+    if (!map_withheld && (v === null || isNaN(v))) continue;
     L.circleMarker([d.lat, d.lon], {
       renderer: canvas, radius: 4, weight: 0.4, color: "#333",
-      fillColor: ramp(v), fillOpacity: 0.85
+      fillColor: map_withheld ? PLAIN : ramp(v), fillOpacity: 0.85
     }).bindPopup(
       `<b>${d.lat.toFixed(1)}, ${d.lon.toFixed(1)}</b><br>` +
-      `median: ${d.value_p50} ${map_unit}<br>` +
-      `Igeo: ${d.igeo_p50 ?? "n/a"}<br>` +
+      (map_withheld ? "" :
+        `median: ${d.value_p50} ${map_unit}<br>` +
+        `Igeo: ${d.igeo_p50 ?? "n/a"}<br>`) +
       `measurements: ${d.n}`
     ).addTo(map);
   }
 }
 ```
 
-Each point is a 0.1 degree cell (roughly 11 km), coloured by the median of the
-sites inside it, on the scale shown in the legend. That scale runs between the 5th
-and the 95th percentile of the cells, so a few extreme cells share the end colour
-rather than flattening the range everything else sits in. Cells are summaries: a cell containing both clean and enriched
-sites shows the middle of them. The map opens on the region where this element was
-measured, which differs from element to element; the house button returns to that
-view.
+```{r}
+#| output: asis
+#| eval: !expr map_has_points
+cat("Each point is a 0.1 degree cell (roughly 11 km)")
+if (map_withheld) {
+  cat(", drawn in a single colour on purpose. A cell median would be the middle of ",
+      "the measurements that cleared the detection limit, which is the upper tail ",
+      "described above, so the map says where ", tolower(e_name), " was measured and ",
+      "nothing about how much of it was there.", sep = "")
+} else {
+  cat(", coloured by the median of the sites inside it, on the scale shown in the ",
+      "legend. That scale runs between the 5th and the 95th percentile of the cells, ",
+      "so a few extreme cells share the end colour rather than flattening the range ",
+      "everything else sits in. Cells are summaries: a cell containing both clean and ",
+      "enriched sites shows the middle of them.", sep = "")
+}
+cat(" The map opens on the region where this element was measured, which differs from ",
+    "element to element; the house button returns to that view.\n\n", sep = "")
 
-Bulk sediment only. The sieved fractions are measured and published, but they are a
-different material and cannot be drawn on the same colour scale.
+cat("Bulk sediment only. The sieved fractions are measured and published, but they ",
+    "are a different material and ",
+    if (map_withheld) "are not drawn here." else
+      "cannot be drawn on the same colour scale.",
+    "\n\n", sep = "")
+```
