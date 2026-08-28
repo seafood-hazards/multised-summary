@@ -15,23 +15,50 @@ much as contamination.
 
 ## Two ways round it
 
+There are two, and which one applies is decided by the sample, not by us: either
+the grain size was removed in the laboratory by a sieve, or it has to be corrected
+for arithmetically, by aluminium.
+
 ```{r}
 #| output: asis
 cat("```{mermaid}\n",
     "flowchart TD\n",
-    '  S["One sample"] --> Q{"Is aluminium<br/>measured?"}\n',
-    '  Q -->|yes| EF["<b>Enrichment factor</b><br/>metal per aluminium,<br/>against an offshore reference"]\n',
-    '  Q -->|no| I["<b>Geo-accumulation index</b><br/>metal against a regional<br/>background concentration"]\n',
+    '  S["One sample"] --> Q{"Was it sieved<br/>before analysis?"}\n',
+    '  Q -->|yes| SV["<b>The sieve</b> is the<br/>grain-size control"]\n',
+    '  Q -->|"no, bulk sediment"| A{"Does aluminium predict<br/>this element, and was<br/>it measured?"}\n',
+    '  A -->|yes| EF["<b>Enrichment factor</b><br/>metal per aluminium,<br/>against an offshore reference"]\n',
+    '  A -->|no| N["No verdict:<br/>cannot be classified"]\n',
     '  EF --> V["EF below 1<br/>= pristine"]\n',
-    '  I --> W["Igeo at or below 0<br/>= unpolluted"]\n',
+    '  SV --> W["below both concentration<br/>criteria = pristine,<br/>strict rule only"]\n',
     "  style EF fill:#e8f0fe,stroke:#4477AA\n",
-    "  style I fill:#fdf0d0,stroke:#7a5300\n",
+    "  style SV fill:#e8f0fe,stroke:#4477AA\n",
+    "  style N fill:#eeeeee,stroke:#888888\n",
     "```\n", sep = "")
 ```
 
 **Aluminium is the grain-size correction.** It is a structural component of clay,
 so it rises and falls with the mud content of a sample. Dividing the metal by it
 removes the texture effect and leaves what is left over.
+
+::: {.callout-note}
+## The geo-accumulation index is reported, not used to judge
+
+Igeo compares a sample with a regional background concentration for the same
+element. It needs no aluminium, so it reaches almost every measurement we hold,
+where the enrichment factor reaches a small minority of them, and EFSA names it as
+an alternative where no enrichment factor is available.
+
+It is still not what decides anything here. Igeo divides by a background, not by a
+normaliser, so it does not correct for grain size at all: in bulk sediment it
+tracks the mud content of a sample closely enough that a verdict built on it would
+be partly a verdict about texture. A muddy natural seabed would read as polluted.
+
+So Igeo appears throughout this site, on the element pages, on the maps and in the
+downloadable data, as a second reading to set beside the verdict. **No pristine
+verdict uses it, and it plays no part in what is submitted.** The
+[Geo-Accumulation Index](`r REFINED`/background-igeo.html) page on the refined site
+has the measurements behind that decision.
+:::
 
 ::: {.callout-warning}
 ## Iron is deliberately not used
