@@ -162,6 +162,9 @@ cat("## Contamination classes\n\n",
     "concentration. It needs no aluminium, so it covers far more of the data than ",
     "the pristine verdict does, at the cost of not controlling for grain size. Its ",
     "reference is the offshore median in the table above.\n\n",
+    "This is a second reading and not a verdict: it decides nothing above, for the ",
+    "reason given under ",
+    "[Two ways round it](methods-pristine.qmd#two-ways-round-it).\n\n",
     sep = "")
 ```
 
