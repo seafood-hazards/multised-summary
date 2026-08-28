@@ -324,6 +324,43 @@ mapDiv = {
     ? d3.scaleDiverging(d3.interpolateRdBu).domain([Math.max(2, hi), 0, Math.min(-2, lo)])
     : d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
 
+  // The legend. Colour is the only thing on this map carrying a value, so it has
+  // to be readable without the popups. The bar is sampled from the same ramp the
+  // markers use rather than restating the palette, so a change to the scale
+  // cannot leave the legend describing the previous one.
+  const fmt = v => Math.abs(v) >= 100 ? v.toFixed(0)
+                 : Math.abs(v) >= 10  ? v.toFixed(1)
+                 : v.toFixed(2);
+  const isIgeo = layer === "igeo_p50";
+  const barLo = isIgeo ? Math.min(-2, lo) : lo;
+  const barHi = isIgeo ? Math.max(2, hi) : hi;
+  const stops = d3.range(0, 1.0001, 1 / 32)
+                  .map(t => ramp(barLo + t * (barHi - barLo)));
+  // Igeo zero is the only threshold on either scale that means anything, so it
+  // gets a tick at its true position, which is not the middle of the bar.
+  const zeroPct = 100 * (0 - barLo) / (barHi - barLo);
+
+  const LegendControl = L.Control.extend({
+    options: { position: "bottomright" },
+    onAdd() {
+      const d = L.DomUtil.create("div", "legend");
+      d.innerHTML =
+        `<div class="legend-title">${isIgeo ? "Enrichment (Igeo)" : "Median concentration"}</div>` +
+        `<div class="legend-sub">${isIgeo ? "0 = at the natural background" : map_unit}</div>` +
+        `<div class="legend-barwrap${isIgeo ? " has-zero" : ""}">` +
+          `<div class="legend-bar" style="background:linear-gradient(to right,${stops.join(",")})"></div>` +
+          (isIgeo ? `<div class="legend-zero" style="left:${zeroPct}%"><span>0</span></div>` : "") +
+        `</div>` +
+        `<div class="legend-labels"><span>${fmt(barLo)}</span><span>${fmt(barHi)}</span></div>` +
+        `<div class="legend-note">` +
+          (isIgeo ? "Blue is at or below background, red is above it. " : "") +
+          `Cells past either end take the end colour.</div>`;
+      L.DomEvent.disableClickPropagation(d);
+      return d;
+    }
+  });
+  new LegendControl().addTo(map);
+
   const canvas = L.canvas({ padding: 0.5 });
   for (const d of pts) {
     const v = d[layer];
@@ -342,7 +379,9 @@ mapDiv = {
 ```
 
 Each point is a 0.1 degree cell (roughly 11 km), coloured by the median of the
-sites inside it. Cells are summaries: a cell containing both clean and enriched
+sites inside it, on the scale shown in the legend. That scale runs between the 5th
+and the 95th percentile of the cells, so a few extreme cells share the end colour
+rather than flattening the range everything else sits in. Cells are summaries: a cell containing both clean and enriched
 sites shows the middle of them. The map opens on the region where this element was
 measured, which differs from element to element; the house button returns to that
 view.
