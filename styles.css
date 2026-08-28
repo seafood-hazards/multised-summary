@@ -80,3 +80,10 @@ th { white-space: nowrap; }
   font-size: 10.5px; color: #555; margin-top: 2px; width: 170px;
 }
 .legend-note { font-size: 10.5px; color: #666; margin-top: 5px; max-width: 170px; }
+/* Single-swatch form of the legend, used where an element's cells carry no
+   colour scale because its concentrations are withheld. */
+.legend-row { display: flex; align-items: center; gap: 6px; }
+.legend-swatch {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid #333; display: inline-block;
+}
