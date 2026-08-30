@@ -333,12 +333,13 @@ no_verdict_reason = {
 
 // The options follow the fraction on show, because the verdict does: manganese is
 // judged in the sieved fractions and not in bulk. Switching fraction rebuilds this
-// radio, which resets it to concentration; that is the honest behaviour when the
+// radio, which resets it to the first option; that is the honest behaviour when the
 // choices themselves have changed.
 colour_opts = {
-  const o = [["Concentration", "value_p50"]];
-  if (map_has_igeo) o.push(["Enrichment (Igeo)", "igeo_p50"]);
+  const o = [];
   if (pristine_cats.includes(frac)) o.push(["Pristine", "pristine_class"]);
+  o.push(["Concentration", "value_p50"]);
+  if (map_has_igeo) o.push(["Enrichment (Igeo)", "igeo_p50"]);
   return o;
 }
 
@@ -346,9 +347,130 @@ colour_opts = {
 // element that has none, so `chosen` would stay pending for ever, and every cell
 // downstream of it, the map included, would silently never run.
 viewof chosen = colour_opts.length > 1
-  ? Inputs.radio(new Map(colour_opts), { value: "value_p50", label: "Colour by" })
-  : Object.assign(html`<span></span>`, { value: "value_p50" })
+  ? Inputs.radio(new Map(colour_opts), { value: colour_opts[0][1], label: "Colour by" })
+  : Object.assign(html`<span></span>`, { value: colour_opts[0][1] })
 layer = chosen
+```
+
+```{ojs}
+//| echo: false
+// The palette, the class order and the number format live out here because three
+// cells need them: the map, its legend, and the Show filter below. A second copy
+// is a second place for the filter to disagree with the map it filters.
+// The order is best to worst and grey is last on purpose: on the bulk maps grey is
+// the commonest cell by far, and it means the sediment could not be judged, not
+// that it was judged clean.
+PR_ORDER = ["strict", "ef", "not", "unclassified"]
+PR = ({
+  strict:       { colour: "#1a7a3c",
+                  ef: "Pristine (strict)", conservative: "Pristine (conservative)" },
+  ef:           { colour: "#7cc47f",
+                  ef: "Pristine (EF < 1)", conservative: null },
+  not:          { colour: "#e08214",
+                  ef: "Not pristine", conservative: "Not pristine" },
+  unclassified: { colour: "#b4b4b4",
+                  ef: "Cannot be classified", conservative: "Cannot be classified" }
+})
+// Which pair of class names to use. A fraction with no verdict has no basis, and
+// every cell in it is unclassified.
+map_basis = pts.length ? pts[0].verdict_basis : null
+map_num = v => Math.abs(v) >= 100 ? v.toFixed(0)
+             : Math.abs(v) >= 10  ? v.toFixed(1)
+             : v.toFixed(2)
+```
+
+```{ojs}
+//| echo: false
+// What Show offers follows the layer, because the values do: a verdict has
+// classes, a concentration has a distribution. Both are cut from the fraction on
+// show, and both only ever filter what is drawn. The colour scale and the class
+// palette are built from every cell in the fraction, before anything is hidden,
+// so narrowing the map never recolours the cells left on it.
+show_cuts = {
+  if (map_withheld || layer === "pristine_class") return null;
+  const vals = pts.map(d => d[layer])
+                  .filter(v => v !== null && v !== undefined && !isNaN(v))
+                  .sort(d3.ascending);
+  if (!vals.length) return null;
+  return { p10: d3.quantileSorted(vals, 0.1),
+           p50: d3.quantileSorted(vals, 0.5),
+           p90: d3.quantileSorted(vals, 0.9),
+           // the two sides of the Igeo zero, counted here so the options below can
+           // leave out a side this fraction does not have.
+           n_above0:  vals.filter(v => v > 0).length,
+           n_atmost0: vals.filter(v => v <= 0).length };
+}
+
+show_opts = {
+  if (!pts.length) return [];
+  if (layer === "pristine_class") {
+    // only the classes this fraction actually has, named the way the legend names
+    // them: a sieved fraction has no enrichment factor, so it can never offer the
+    // EF class, and an option that would empty the map is not offered at all.
+    const label = k => map_basis ? PR[k][map_basis] : PR[k].ef;
+    return PR_ORDER
+      .filter(k => (k === "unclassified" || (map_basis && PR[k][map_basis])) &&
+                   pts.some(d => d.pristine_class === k))
+      .map(k => ({ key: k, label: label(k) }));
+  }
+  if (!show_cuts) return [];
+  const c = show_cuts;
+  const o = [{ key: "all", label: "All cells" }];
+  // Igeo carries a threshold that means something on its own: zero is the natural
+  // background, which is why the legend gives it a tick and the ramp diverges
+  // about it. It goes first because it is the only cut on the scale that is a
+  // statement about the sediment rather than about the other cells. A side this
+  // fraction has none of is left out rather than offered as an empty map.
+  if (layer === "igeo_p50") {
+    if (c.n_above0)
+      o.push({ key: "above_bg", label: "Above background (Igeo > 0)" });
+    if (c.n_atmost0)
+      o.push({ key: "at_or_below_bg", label: "At or below background (Igeo <= 0)" });
+  }
+  // The bands name the value they cut at, so the control says what it is doing
+  // rather than leaving the reader to guess where this fraction's median falls.
+  // The halves meet at the median instead of splitting it, so a cell sitting
+  // exactly on it is in both rather than in neither.
+  o.push(
+    { key: "top10",    label: `Top 10% (${map_num(c.p90)} and above)` },
+    { key: "upper",    label: `Upper half (${map_num(c.p50)} and above)` },
+    { key: "lower",    label: `Lower half (${map_num(c.p50)} and below)` },
+    { key: "bottom10", label: `Bottom 10% (${map_num(c.p10)} and below)` });
+  return o;
+}
+```
+
+```{ojs}
+//| echo: false
+// Classes are a set and a band is a range, so one is a checkbox and the other a
+// radio. The placeholder is the same trick as the colour control: a view that
+// never yields leaves every cell downstream of it, the map included, pending for
+// ever, and a withheld element offers no filter because it maps no values.
+viewof shown = show_opts.length > 1
+  ? (layer === "pristine_class"
+      ? Inputs.checkbox(new Map(show_opts.map(o => [o.label, o.key])),
+                        { value: show_opts.map(o => o.key), label: "Show" })
+      : Inputs.radio(new Map(show_opts.map(o => [o.label, o.key])),
+                     { value: "all", label: "Show" }))
+  : Object.assign(html`<span></span>`,
+                  { value: layer === "pristine_class"
+                             ? show_opts.map(o => o.key) : "all" })
+
+show_keep = {
+  if (layer === "pristine_class") {
+    const keep = new Set(shown);
+    return d => keep.has(d.pristine_class);
+  }
+  if (!show_cuts || shown === "all") return d => true;
+  const c = show_cuts;
+  const test = { above_bg:       v => v > 0,
+                 at_or_below_bg: v => v <= 0,
+                 top10:          v => v >= c.p90,
+                 upper:          v => v >= c.p50,
+                 lower:          v => v <= c.p50,
+                 bottom10:       v => v <= c.p10 }[shown];
+  return test ? (d => test(d[layer])) : (d => true);
+}
 ```
 
 ```{ojs}
@@ -402,23 +524,10 @@ mapDiv = {
   // One colour for a withheld element, a scale for everything else. Cells still
   // mark where the element was measured; what is dropped is the number.
   const PLAIN = "#3f7fb5";
-  // The pristine layer is a verdict, not a level, so it is drawn as classes. The
-  // order is best to worst and grey is last on purpose: on the bulk maps grey is
-  // the commonest cell by far, and it means the sediment could not be judged, not
-  // that it was judged clean.
-  const PR_ORDER = ["strict", "ef", "not", "unclassified"];
-  const PR = {
-    strict:       { colour: "#1a7a3c",
-                    ef: "Pristine (strict)", conservative: "Pristine (conservative)" },
-    ef:           { colour: "#7cc47f",
-                    ef: "Pristine (EF < 1)", conservative: null },
-    not:          { colour: "#e08214",
-                    ef: "Not pristine", conservative: "Not pristine" },
-    unclassified: { colour: "#b4b4b4",
-                    ef: "Cannot be classified", conservative: "Cannot be classified" }
-  };
+  // The pristine layer is a verdict, not a level, so it is drawn as classes, from
+  // the palette and the basis the Show filter and the legend also read.
   const isPristine = layer === "pristine_class";
-  const basis = pts.length ? pts[0].verdict_basis : null;
+  const basis = map_basis;
 
   let ramp = null, isIgeo = false, barLo = null, barHi = null;
   if (!map_withheld && !isPristine) {
@@ -438,13 +547,23 @@ mapDiv = {
     barHi = isIgeo ? Math.max(2, hi) : hi;
   }
 
+  // Which cells the map has anything to say about, and which of those Show has
+  // left on. Both are settled here, before the legend, because the legend
+  // describes what is drawn: filtering to one class and leaving the other three
+  // in the key would be the legend describing a map that is not on screen.
+  const mappable = pts.filter(d => isPristine
+    ? !!PR[d.pristine_class]
+    : (map_withheld || !(d[layer] === null || isNaN(d[layer]))));
+  const kept = mappable.filter(show_keep);
+  const countNote = kept.length < mappable.length
+    ? `<div class="legend-note">Showing ${kept.length} of ${mappable.length} cells.</div>`
+    : "";
+
   // The legend. Colour is the only thing on this map carrying a value, so it has
   // to be readable without the popups. The bar is sampled from the same ramp the
   // markers use rather than restating the palette, so a change to the scale
   // cannot leave the legend describing the previous one.
-  const fmt = v => Math.abs(v) >= 100 ? v.toFixed(0)
-                 : Math.abs(v) >= 10  ? v.toFixed(1)
-                 : v.toFixed(2);
+  const fmt = map_num;
   const legendBody = () => {
     if (isPristine) {
       // only the classes this fraction actually has. A sieved fraction has no
@@ -455,7 +574,7 @@ mapDiv = {
       const label = k => basis ? PR[k][basis] : PR[k].ef;
       const present = PR_ORDER.filter(k =>
         (k === "unclassified" || (basis && PR[k][basis])) &&
-        pts.some(d => d.pristine_class === k));
+        kept.some(d => d.pristine_class === k));
       return `<div class="legend-title">Pristine verdict</div>` +
              `<div class="legend-sub">${frac_label}, by cell</div>` +
              present.map(k =>
@@ -468,9 +587,13 @@ mapDiv = {
              `<div class="legend-note">` +
                (no_verdict_reason
                  ? no_verdict_reason
-                 : "A cell takes the strictest class a majority of its sites meet. " +
-                   "Grey is a gap in the data, not a clean result.") +
-             `</div>`;
+                 : "A cell takes the strictest class a majority of its sites meet." +
+                   // only while grey is on the map. Warning about grey under a
+                   // legend that no longer has any is the note describing the
+                   // unfiltered map rather than the one being looked at.
+                   (present.includes("unclassified")
+                     ? " Grey is a gap in the data, not a clean result." : "")) +
+             `</div>` + countNote;
     }
     if (map_withheld) {
       return `<div class="legend-title">Where it was measured</div>` +
@@ -497,7 +620,7 @@ mapDiv = {
       `<div class="legend-labels"><span>${fmt(barLo)}</span><span>${fmt(barHi)}</span></div>` +
       `<div class="legend-note">` +
         (isIgeo ? "Blue is at or below background, red is above it. " : "") +
-        `Cells past either end take the end colour.</div>`;
+        `Cells past either end take the end colour.</div>` + countNote;
   };
 
   const LegendControl = L.Control.extend({
@@ -517,14 +640,12 @@ mapDiv = {
   // last it would bury the result the map exists to show.
   const rank = { unclassified: 0, not: 1, ef: 2, strict: 3 };
   const drawn = isPristine
-    ? pts.slice().sort((a, b) => (rank[a.pristine_class] ?? 0) -
-                                 (rank[b.pristine_class] ?? 0))
-    : pts;
+    ? kept.slice().sort((a, b) => (rank[a.pristine_class] ?? 0) -
+                                  (rank[b.pristine_class] ?? 0))
+    : kept;
 
   for (const d of drawn) {
     const v = d[layer];
-    if (isPristine ? !PR[d.pristine_class]
-                   : (!map_withheld && (v === null || isNaN(v)))) continue;
     const fill = isPristine   ? PR[d.pristine_class].colour
                : map_withheld ? PLAIN
                               : ramp(v);
@@ -593,6 +714,18 @@ if (length(map_pristine_cats)) {
   cat("**A grey cell means the sediment could not be judged, not that it was judged ",
       "clean.** Grey is drawn small and faint so the cells that carry a verdict stay ",
       "visible, which on some maps means most of the map is faint.\n\n", sep = "")
+}
+
+if (!map_withheld) {
+  cat("**Show** narrows what is drawn and changes nothing else. On the verdict map ",
+      "it takes classes, so one class can be looked at on its own; on the ",
+      "concentration and enrichment maps it takes a band of the distribution, cut ",
+      "at the median and the 10th and 90th percentiles of the fraction on show. ",
+      "The enrichment map adds the one cut on it that is not about the other ",
+      "cells: whether a cell sits above the natural background or at or below it. ",
+      "The colours are fixed on the whole fraction before anything is hidden, so a ",
+      "cell keeps its colour whichever band is selected, and the legend counts the ",
+      "cells left on the map.\n\n", sep = "")
 }
 
 if (nrow(map_fracs) > 1) {
