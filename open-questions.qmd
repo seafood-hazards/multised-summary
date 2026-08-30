@@ -83,11 +83,18 @@ routes at that same wall, and only one of them has to work.
 
 Aluminium is the only normaliser a verdict is allowed to use, and iron is
 deliberately excluded because Norwegian fish feed contains it. Lithium, scandium,
-titanium and caesium are the usual alternatives in the sediment literature. Whether
-any of the five sources measured them at all is the first question; whether any of
-them is confounded by fish farming the way iron is would have to be settled before
-one could be used. A normaliser that is measured where aluminium is not would do
-more for coverage than anything else on this list.
+titanium and caesium are the usual alternatives in the sediment literature, and
+four of the five sources did measure at least one of them, lithium at close to the
+scale of aluminium itself.
+
+That much has now been checked, and it does not lead where it looked as though it
+might. Lithium is measured on very nearly the same samples aluminium is, so putting
+it in aluminium's place would add almost no new ground. What cannot be judged today
+is mostly data from a source that measured no normaliser of any kind, and there is
+nothing there to stand in. An alternative could still be worth having where the two
+disagree, and whether any of them is confounded by fish farming the way iron is
+would have to be settled before one could be used, but this is now the least
+promising of the four routes rather than the most.
 
 ### 8. Can a clean location count for more than one element?
 
