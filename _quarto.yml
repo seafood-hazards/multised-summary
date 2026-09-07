@@ -56,6 +56,18 @@ format:
   html:
     theme: cosmo
     css: styles.css
+    # The refined site is laid out like this one, so a reader who follows a link
+    # can arrive there without noticing they left. Every off-site link is marked
+    # with an arrow and opens in a new tab, so the move is visible and this site
+    # stays where it was.
+    link-external-icon: true
+    link-external-newwindow: true
+    # Quarto's default filter calls a link internal when its HOST matches, and
+    # every sibling site is on seafood-hazards.github.io, so the refined links
+    # (the ones that need marking) would count as internal. Match this site's own
+    # path instead: everything under multised-summary/ is internal, the nine
+    # sibling sites are not.
+    link-external-filter: '^(?:http:|https:)\/\/seafood-hazards\.github\.io\/multised-summary\/'
     toc: true
     df-print: kable
     fig-width: 7

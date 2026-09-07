@@ -15,4 +15,4 @@ SYM <- "MN"
 ---
 
 Full workings for this element are on the
-[detailed analysis site](`r REFINED`).
+[detailed analysis site](`r REFINED`), a separate site that opens in a new tab.
