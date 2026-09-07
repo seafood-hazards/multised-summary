@@ -135,5 +135,6 @@ and where it would live if it did, has not been decided.
 ---
 
 The workings behind every answer this site does give are on the
-[detailed analysis site](`r REFINED`/). Comments and corrections are welcome
+[detailed analysis site](`r REFINED`/), a separate site that opens in a new tab.
+Comments and corrections are welcome
 through the repository linked in the top right.

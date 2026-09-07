@@ -94,6 +94,7 @@ pristine verdict, and for manganese only the sieved one does. See
 [Estimation of Pristine Sediment](methods-pristine.qmd#the-sieved-samples-are-judged-on-the-sieve).
 :::
 
-Full detail: [database schema](`r REFINED`/db-schema-refined.html) and the
+Full detail, on the refined site: [database schema](`r REFINED`/db-schema-refined.html)
+and the
 [cleaning report](https://seafood-hazards.github.io/multised-clean) on the
 detailed sites.

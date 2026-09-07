@@ -101,7 +101,7 @@ elements |>
 a real human source in this region, so a spread between "the low end of everything"
 and "far from any farm" is what you would expect to see.
 
-Full workings: [Background](`r REFINED`/background.html),
+Full workings, on the refined site: [Background](`r REFINED`/background.html),
 [Mixture](`r REFINED`/background-mixture.html),
 [Grain-size normalised](`r REFINED`/background-gsnorm.html),
 [Pressure-based](`r REFINED`/background-pressure.html).

@@ -137,6 +137,6 @@ reporting the more favourable number.
   axis. That is deliberate: it is what allows this page to be an independent check
   on it rather than a restatement of it.
 
-Full workings: [Pressure-Based Background](`r REFINED`/background-pressure.html),
+Full workings, on the refined site: [Pressure-Based Background](`r REFINED`/background-pressure.html),
 [Pressure Controls](`r REFINED`/pressure-controls.html),
 [Geo-Accumulation Index](`r REFINED`/background-igeo.html).

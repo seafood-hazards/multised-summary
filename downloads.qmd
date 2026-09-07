@@ -28,7 +28,7 @@ The full relational database: measurements, sites, sampling events, methods,
 normalisers and the aquaculture register, with every derived flag this site
 reports. Use this if you want to run your own queries.
 
-Schema and table documentation:
+Schema and table documentation, on the refined site:
 [DB Schema](`r REFINED`/db-schema-refined.html).
 
 ## The flat dataset
@@ -40,12 +40,12 @@ One row per measurement with every joined column already attached, plus a column
 dictionary. Use this if you want to open the data in R, Python, or a spreadsheet
 without writing SQL.
 
-Column-by-column description:
+Column-by-column description, on the refined site:
 [Dataset Download](`r REFINED`/download-dataset.html).
 
 ## The EFSA submission table
 
-**[EFSA format](`r REFINED`/efsa-format-v2.html)** on the detailed site.
+**[EFSA format](`r REFINED`/efsa-format-v2.html)** on the refined site.
 
 A separate cut of the same data, shaped to EFSA's reporting workbook and its
 extraction specification. Both it and the flat dataset are cut from one frame, so
