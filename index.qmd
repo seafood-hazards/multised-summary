@@ -116,6 +116,21 @@ keyfig(
 
 Details: [Aquaculture Pressure](methods-pressure.qmd).
 
+## Where the workings live
+
+Nine other sites document how the data reached this one, one per stage of the
+pipeline. The refined site carries the full workings behind every result on this
+page; the earlier ones show what each stage did to the measurements before the
+analyses saw them.
+
+| Stage | Site | What it documents |
+|-------|------|-------------------|
+| pilot | [Mareano](https://seafood-hazards.github.io/mareano-pilot/), [Vannmiljø](https://seafood-hazards.github.io/vannmiljo-pilot/), [ICES-DOME](https://seafood-hazards.github.io/ices-dome-pilot/), [MUDAB](https://seafood-hazards.github.io/mudab-pilot/), [4Demon](https://seafood-hazards.github.io/4demon-pilot/) | one site per data source: that provider's own schema, parsed with as little interpretation as possible |
+| slim | [multised-slim](https://seafood-hazards.github.io/multised-slim/) | the shared seven-table schema, and the quality-control flagging applied to it |
+| clean | [multised-clean](https://seafood-hazards.github.io/multised-clean/) | the flags applied (unusable rows removed, units harmonised, sites geo-enriched), and the analyses on the result |
+| merged | [multised-merged](https://seafood-hazards.github.io/multised-merged/) | the five sources in one database, with cross-source duplicates resolved |
+| refined | [multised-refined](`r REFINED`/) | the analysis database, and every analysis this site summarises |
+
 ::: {.callout-note}
 ## This is not the final submission
 
