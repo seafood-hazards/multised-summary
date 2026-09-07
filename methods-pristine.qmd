@@ -233,6 +233,6 @@ offshore survey work and rare in near-cage monitoring. Almost none of the sedime
 under a Norwegian fish farm can be given an aluminium-based verdict, which is why
 the [aquaculture question](methods-pressure.qmd) is answered with a different tool.
 
-Full workings: [Enrichment Factor](`r REFINED`/background-ef.html),
+Full workings, on the refined site: [Enrichment Factor](`r REFINED`/background-ef.html),
 [Pristine Classification](`r REFINED`/background-pristine.html),
 [Regression Normalisation](`r REFINED`/background-regression.html).

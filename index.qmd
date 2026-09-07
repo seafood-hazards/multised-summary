@@ -16,7 +16,7 @@ it:
 This site is the short answer. Every number on it is computed by the pipeline and
 read from a file; nothing is typed in by hand. Where you want the workings, each
 page links to the corresponding page on the
-[detailed analysis site](`r REFINED`).
+[detailed analysis site](`r REFINED`), a separate site that opens in a new tab.
 
 ```{r}
 #| output: asis
@@ -122,6 +122,9 @@ Nine other sites document how the data reached this one, one per stage of the
 pipeline. The refined site carries the full workings behind every result on this
 page; the earlier ones show what each stage did to the measurements before the
 analyses saw them.
+
+All nine are separate sites laid out much like this one, so every link that
+leaves here carries an arrow and opens in a new tab.
 
 | Stage | Site | What it documents |
 |-------|------|-------------------|
