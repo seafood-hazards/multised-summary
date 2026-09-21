@@ -34,6 +34,8 @@ smeta    <- rd("summary_meta.csv")
 source_elements <- rd("summary_source_elements.csv")
 source_flow     <- rd("summary_source_flow.csv")
 source_removals <- rd("summary_source_removals.csv")
+source_fractions <- rd("summary_source_fractions.csv")
+source_extras    <- rd("summary_source_extras.csv")
 
 elem_levels <- c("CU", "ZN", "CO", "MN", "MO", "SE", "I")
 cat_label <- c(bulk = "Bulk", sieved63 = "Sieved <63 um", sieved20 = "Sieved <20 um")
@@ -80,6 +82,16 @@ removal_label <- c(outside_europe = "Outside the study area",
                    wet_weight     = "Reported on a wet-weight basis",
                    source_qc      = "Failed the archive's own quality flag",
                    combined       = "Combined with a repeat of the same sample")
+
+# The fractions, on the source pages. The three the site reports are named as the
+# element pages name them; the fourth is the sieve sizes this study does not pool
+# with them, which is small enough everywhere to be a footnote and large enough in
+# one archive to be worth printing rather than dropping.
+frac_order <- c(cat_order, "other")
+frac_label <- c(cat_label, other = "Other or unrecorded")
+# One colour per fraction, for the map. Deliberately not the archive palette: a
+# reader should not be able to confuse "sampled bulk" with "sampled by Mareano".
+frac_palette <- c(bulk = "#44AA99", sieved63 = "#DDCC77", sieved20 = "#882255")
 
 # The six rungs of the funnel, named as the Data Collection page numbers them.
 stage_label <- c(pilot = "1. Parse", slim = "2. Harmonise", clean = "3. Clean",
