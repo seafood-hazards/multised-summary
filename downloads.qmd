@@ -73,8 +73,10 @@ tbl <- data.frame(
            "summary_background.csv", "summary_verdicts.csv",
            "summary_coverage.csv", "summary_censoring.csv", "summary_pressure.csv",
            "summary_gradient.csv", "summary_controls.csv", "summary_sources.csv",
-           "summary_flow.csv", "summary_map_grid.csv", "summary_map_sites.csv",
-           "summary_meta.csv"),
+           "summary_flow.csv", "summary_source_elements.csv",
+           "summary_source_flow.csv", "summary_source_removals.csv",
+           "summary_source_map.csv", "summary_map_grid.csv",
+           "summary_map_sites.csv", "summary_meta.csv"),
   Contents = c(
     "One row per element and fraction: how much data, and what can be said about it",
     "What each fraction's offshore reference population actually is: where it sits, how deep, and how little of it lies in the far north",
@@ -88,6 +90,10 @@ tbl <- data.frame(
     "The four independent controls on the near-cage gradient",
     "What each of the five sources contributes",
     "Measurement counts at each pipeline stage",
+    "Per source and target element: what the archive carries, and what it does not",
+    "Per source: the same pipeline stages, one archive at a time",
+    "Per source: why the measurements that leave at the cleaning step leave",
+    "A 0.1 degree grid per source: where each archive sampled, and how much",
     "A 0.1 degree grid of median concentration and Igeo: the map layer",
     "The same at full site resolution",
     "Provenance: which database, built when, with which rules"
