@@ -25,6 +25,8 @@ summary_flow.csv
 summary_source_elements.csv
 summary_source_flow.csv
 summary_source_removals.csv
+summary_source_fractions.csv
+summary_source_extras.csv
 summary_source_map.csv
 summary_map_sites.csv
 summary_map_grid.csv
