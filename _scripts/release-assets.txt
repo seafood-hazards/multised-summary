@@ -22,6 +22,10 @@ summary_gradient.csv
 summary_controls.csv
 summary_sources.csv
 summary_flow.csv
+summary_source_elements.csv
+summary_source_flow.csv
+summary_source_removals.csv
+summary_source_map.csv
 summary_map_sites.csv
 summary_map_grid.csv
 summary_meta.csv

@@ -61,7 +61,10 @@ cat("```{mermaid}\n",
 ```
 
 Each box is a database on disk, and each number is the measurements it holds.
-Details: [Data Collection and Preparation](methods-data.qmd).
+Details: [Data Collection and Preparation](methods-data.qmd). The five archives at
+the top are not interchangeable, and each has a page of its own recording what it
+carries, what it lacks and how much of it survives:
+[All five sources at a glance](sources.qmd).
 
 ## What we can say, element by element
 

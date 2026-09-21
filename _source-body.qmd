@@ -1,0 +1,312 @@
+```{r}
+#| label: source-context
+#| include: false
+# Everything below is driven by SRC, the source key set by the calling page. As
+# everywhere on this site, no page holds a number of its own: these all come from
+# summary_source_*.csv, written by analyze_data("refined", module = "summary").
+s_lab <- unname(src_levels[SRC])
+s_row <- sources[sources$source == s_lab, ]
+s_el  <- source_elements[source_elements$key == SRC, ]
+s_el  <- s_el[order(match(s_el$symbol, elem_levels)), ]
+s_fl  <- source_flow[source_flow$key == SRC, ]
+s_fl  <- s_fl[order(match(s_fl$stage, names(stage_label))), ]
+s_rm  <- source_removals[source_removals$key == SRC, ]
+s_rm  <- s_rm[order(match(s_rm$reason, removal_order)), ]
+
+s_has    <- s_el[s_el$in_archive, ]
+s_missing <- s_el[!s_el$in_archive, ]
+n_pilot <- s_fl$n[s_fl$stage == "pilot"]
+n_slim  <- s_fl$n[s_fl$stage == "slim"]
+
+# a list that reads as English, whether it holds one name or five
+and_list <- function(x) if (length(x) < 2) paste(x) else
+  paste(paste(utils::head(x, -1), collapse = ", "), "and", utils::tail(x, 1))
+# Element names are stored in title case, which is right in a table and wrong in
+# the middle of a sentence.
+sentence <- function(x) sub("^(.)", "\\U\\1", x, perl = TRUE)
+```
+
+```{r}
+#| output: asis
+keyfig(
+  list(format(s_row$n, big.mark = " "), "measurements reported"),
+  list(format(s_row$n_sites, big.mark = " "), "sites"),
+  list(sprintf("%d of %d", nrow(s_has), nrow(s_el)), "target elements carried"),
+  list(paste0(s_row$year_min, " to ", s_row$year_max), "sampling years")
+)
+```
+
+## What this archive is
+
+```{r}
+#| output: asis
+cat(src_blurb[[SRC]], "\n\n")
+cat(sprintf(paste("The parse of this archive, before anything was harmonised, has",
+                  "a site of its own: [%s](%s)."),
+            paste0(SRC, "-pilot"), src_pilot(SRC)), "\n")
+```
+
+## Which elements it carries
+
+```{r}
+s_el |>
+  transmute(Element = sprintf("%s (%s)", name, sym_display[as.character(symbol)]),
+            `In the archive` = ifelse(in_archive, format(n_slim, big.mark = " "), "-"),
+            `Reported here` = ifelse(in_archive, format(n_analysed, big.mark = " "), "-"),
+            Sites = ifelse(in_archive, format(n_sites, big.mark = " "), "-"),
+            Years = ifelse(in_archive & !is.na(year_min),
+                           paste0(year_min, " to ", year_max), "-"),
+            `Below LOQ` = ifelse(is.na(pct_censored), "-",
+                                 sprintf("%.1f%%", pct_censored))) |>
+  kable(align = c("l", rep("r", 5)))
+```
+
+**In the archive** is what the harmonised database holds for this source before
+any quality rule was applied. **Reported here** is what survives into the figures
+on this site. **Below LOQ** is the share of the archive's measurements that fell
+under the laboratory's limit of quantification and were deleted, which is the
+single biggest reason the two columns differ.
+
+```{r}
+#| output: asis
+if (nrow(s_missing)) {
+  miss <- elem_name[as.character(s_missing$symbol)]
+  cat(sprintf("This archive carries no measurement of %s at all. That is a property of the archive and not something the pipeline did: %s never reported into it in the first place.\n\n",
+              tolower(and_list(miss)),
+              if (length(miss) == 1) "it was" else "they were"))
+}
+wh <- s_has[s_has$withheld, ]
+if (nrow(wh)) {
+  cat(sprintf("%s %s carried here but withheld across the whole study, because too much of the data sits below the detection limit for any average to mean anything. See [All elements at a glance](results.qmd).\n",
+              sentence(tolower(and_list(elem_name[as.character(wh$symbol)]))),
+              if (nrow(wh) == 1) "is" else "are"))
+}
+```
+
+## How much survives each step
+
+Counted over the seven target elements only. The normalisers, organic carbon and
+the grain-size parameters travel through the same pipeline and are not counted
+here, because this table is about the measurements the study is built on.
+
+```{r}
+s_fl |>
+  transmute(Step = stage_label[stage],
+            Measurements = format(n, big.mark = " "),
+            Sites = ifelse(is.na(n_sites), "", format(n_sites, big.mark = " ")),
+            `Of previous` = ifelse(is.na(pct_of_prev), "",
+                                   sprintf("%.1f%%", pct_of_prev)),
+            `Of parse` = sprintf("%.1f%%", pct_of_pilot),
+            `What happens` = what) |>
+  kable(align = c("l", "r", "r", "r", "r", "l"))
+```
+
+```{r}
+#| fig-height: 2.9
+#| fig-cap: !expr sprintf("Target-element measurements surviving each step, %s.", s_lab)
+s_fl |>
+  mutate(Step = factor(stage_label[stage], levels = unname(stage_label))) |>
+  ggplot(aes(Step, n)) +
+  geom_col(fill = unname(src_palette[s_lab]), width = .68) +
+  geom_text(aes(label = format(n, big.mark = " ")), vjust = -0.4, size = 3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(x = NULL, y = "Measurements") +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+```{r}
+#| output: asis
+# The parse-to-harmonise rung is the one a reader is most likely to misread, so
+# it is stated rather than left to the percentage. Restricted to the targets it
+# is all but lossless everywhere; over the whole archive it would not be, because
+# the pilot database holds every parameter the source publishes.
+lost_parse <- n_pilot - n_slim
+cat(if (lost_parse == 0)
+      "Nothing is lost between the parse and the harmonised schema: every target measurement the archive publishes reaches the shared tables.\n\n"
+    else sprintf("Between the parse and the harmonised schema %s of %s measurements do not carry across: a small residue the parse could not resolve into the shared tables.\n\n",
+                 format(lost_parse, big.mark = " "),
+                 format(n_pilot, big.mark = " ")))
+
+merge_pct <- s_fl$pct_of_prev[s_fl$stage == "merged"]
+if (!is.na(merge_pct) && merge_pct < 99) {
+  cat(sprintf("The merge step costs this archive %.1f%% of what reached it. That is where a cruise reported into two archives is reduced to one copy, and the copy kept is the one from the archive closest to the measurement. Nothing is lost from the study by it: those rows are still reported, under the other source's name.\n",
+              100 - merge_pct))
+} else {
+  cat("The merge step costs this archive almost nothing, so very little of what it reports was also reported by one of the other four.\n")
+}
+```
+
+## Why the rows that leave at the cleaning step leave
+
+Each measurement is counted once, against the first rule that applied to it, so
+these add up rather than overlap.
+
+```{r}
+s_rm |>
+  filter(!is.na(n), n > 0) |>
+  transmute(Reason = removal_label[reason],
+            Measurements = format(n, big.mark = " "),
+            `Of harmonised` = sprintf("%.1f%%", pct_of_slim),
+            `What it means` = what) |>
+  kable(align = c("l", "r", "r", "l"))
+```
+
+```{r}
+#| output: asis
+if (any(!is.na(s_rm$n) & s_rm$n == 0))
+  cat("The reasons not listed removed nothing from this archive.\n\n")
+comb <- s_rm$n[s_rm$reason == "combined"]
+rej  <- sum(s_rm$n[s_rm$reason != "combined"], na.rm = TRUE)
+if (!is.na(comb) && comb > rej)
+  cat("Most of what leaves here is not a rejection. The archive reports the same sample more than once for one occasion and one method, and those repeats are averaged into a single row rather than discarded: the measurements are still in the number above, they are no longer separate rows.\n")
+```
+
+## Where its samples are
+
+```{r}
+#| include: false
+sm <- read.csv(file.path(sdir, "summary_source_map.csv"), stringsAsFactors = FALSE)
+sm <- sm[sm$key == SRC, c("lat", "lon", "n_sites", "n", "n_elements",
+                          "year_min", "year_max", "depth_p50")]
+ojs_define(onemap = sm)
+lat_lo <- min(sm$lat); lat_hi <- max(sm$lat)
+depth_mid <- stats::median(sm$depth_p50, na.rm = TRUE)
+```
+
+One cell is 0.1 degrees, roughly 11 km, the same grid the element maps use.
+Colour is sampling effort and never concentration: this map answers where this
+archive worked, not what was found there. Its cells run from
+`r sprintf("%.1f", lat_lo)` to `r sprintf("%.1f", lat_hi)` degrees north, and the
+middle cell sits at
+`r if (is.na(depth_mid)) "an unrecorded depth" else paste0(round(depth_mid), " m")`.
+
+```{=html}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+```
+
+```{ojs}
+//| echo: false
+L = require("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
+cells = transpose(onemap)
+```
+
+```{ojs}
+//| echo: false
+// Four ways of asking how much work happened in a cell. None of them is a
+// concentration, which is the point: the element pages own those scales.
+layer_opts = [["Sites", "n_sites"], ["Measurements", "n"],
+              ["Elements measured", "n_elements"], ["Median depth (m)", "depth_p50"]]
+viewof layer = Inputs.radio(new Map(layer_opts),
+                            { value: "n_sites", label: "Colour by" })
+layer_name = (layer_opts.find(o => o[1] === layer) ?? ["", ""])[0]
+```
+
+```{ojs}
+//| echo: false
+srcMapDiv = {
+  const div = html`<div id="map"></div>`;
+  yield div;
+  const map = L.map(div, { zoomControl: true });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 12
+  }).addTo(map);
+
+  // The home view is this archive's own extent. The zoom floor of 3 is the one
+  // the element maps use: Mercator stretches the far north, so fitting a range
+  // that reaches Svalbard honestly would open on a world map.
+  const lats = cells.map(d => d.lat), lons = cells.map(d => d.lon);
+  const home = cells.length
+    ? L.latLngBounds([Math.min(...lats), Math.min(...lons)],
+                     [Math.max(...lats), Math.max(...lons)])
+    : L.latLngBounds([36, -25], [81, 40]);
+  const goHome = () => {
+    map.invalidateSize();
+    map.fitBounds(home, { padding: [24, 24], maxZoom: 7 });
+    if (map.getZoom() < 3) map.setView(home.getCenter(), 3);
+  };
+  goHome();
+
+  const HomeControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd() {
+      const btn = L.DomUtil.create("a", "leaflet-home-button");
+      btn.href = "#";
+      btn.title = "Reset the view";
+      btn.setAttribute("aria-label", "Reset the view");
+      btn.innerHTML = '<i class="bi bi-house-door" aria-hidden="true"></i>';
+      L.DomEvent.on(btn, "click", e => { L.DomEvent.stop(e); goHome(); });
+      return btn;
+    }
+  });
+  new HomeControl().addTo(map);
+
+  // Scaled on this archive's own cells, and clipped at the 5th and 95th
+  // percentile so one dense cell does not flatten the rest. The legend says so.
+  const vals = cells.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
+  const sorted = vals.slice().sort((a, b) => a - b);
+  const q = p => sorted[Math.floor(p * (sorted.length - 1))];
+  const lo = q(0.05), hi = q(0.95);
+  const ramp = d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
+  const PLAIN = "#9e9e9e";
+  // A measure this archive never recorded (depth, for one that reports none)
+  // leaves nothing to scale. The cells are still places it sampled, so they are
+  // drawn flat rather than dropped, and the legend says what is missing.
+  const scaled = vals.length > 0;
+
+  const drawn = cells.filter(d => d[layer] !== null && !isNaN(d[layer]));
+  // biggest last, so a cell worth seeing is not painted over by a quiet one
+  drawn.sort((a, b) => a[layer] - b[layer]);
+  for (const d of drawn) {
+    L.circleMarker([d.lat, d.lon], {
+      radius: 4, weight: 0.4, color: "#33333355",
+      fillColor: scaled ? ramp(d[layer]) : PLAIN, fillOpacity: 0.85
+    }).bindPopup(
+      `<b>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}</b>` +
+      `<br/>${d.n} measurements, ${d.n_elements} element${d.n_elements === 1 ? "" : "s"}` +
+      `<br/>${d.year_min} to ${d.year_max}` +
+      (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`)
+    ).addTo(map);
+  }
+  // cells the chosen measure says nothing about are still places this archive
+  // sampled, so they stay on the map in one flat colour rather than vanishing
+  for (const d of cells.filter(d => d[layer] === null || isNaN(d[layer]))) {
+    L.circleMarker([d.lat, d.lon], {
+      radius: 2.5, weight: 0, fillColor: PLAIN, fillOpacity: 0.3
+    }).bindPopup(`<b>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}</b><br/>No ${layer_name.toLowerCase()} recorded`)
+      .addTo(map);
+  }
+
+  const fmt = v => Number.isInteger(v) ? v : v.toFixed(1);
+  const n_grey = cells.length - drawn.length;
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = () => {
+    const box = L.DomUtil.create("div", "legend");
+    const bar = scaled ? d3.range(0, 1.001, 0.05)
+      .map(t => ramp(lo + t * (hi - lo))).join(", ") : "";
+    box.innerHTML =
+      `<div class="legend-title">${layer_name}</div>` +
+      `<div class="legend-sub">per 0.1 degree cell</div>` +
+      (scaled
+        ? `<div class="legend-barwrap"><div class="legend-bar" ` +
+          `style="background: linear-gradient(to right, ${bar})"></div></div>` +
+          `<div class="legend-labels"><span>${fmt(lo)} and below</span>` +
+          `<span>${fmt(hi)} and above</span></div>`
+        : `<div class="legend-row"><span class="legend-swatch" ` +
+          `style="background:${PLAIN}"></span>Cells with data</div>`) +
+      (n_grey ? `<div class="legend-note">${n_grey} cell${n_grey === 1 ? "" : "s"} ` +
+                `with nothing recorded, drawn faint.</div>` : "") +
+      (scaled ? "" : `<div class="legend-note">This archive records no ` +
+                     `${layer_name.toLowerCase()}, so nothing is scaled here.</div>`);
+    return box;
+  };
+  legend.addTo(map);
+}
+```
+
+A cell is a summary of everything this archive did inside it, so a cell holding
+one deep station and one shallow one reports the middle of them. The per-site
+detail is in `summary_source_map.csv`'s full-resolution companion,
+`summary_map_sites.csv`, on the [Downloads](downloads.qmd) page.
