@@ -91,6 +91,78 @@ if (nrow(lone)) {
 }
 ```
 
+## Which fraction each one measured
+
+The fine fraction of a sediment carries most of the metal, so an archive that
+sieves and one that does not are not measuring the same thing even when they
+report the same element and the same seabed. Each source page carries its own
+counts; the shares here are of everything that archive brought to the final
+database.
+
+```{r}
+source_fractions |>
+  mutate(cell = ifelse(n > 0, sprintf("%.1f%%", pct_of_source), "-"),
+         cat = factor(frac_label[cat], levels = unname(frac_label)),
+         source = factor(source, levels = src_levels)) |>
+  arrange(source, cat) |>
+  transmute(Source = sprintf("[%s](%s)", source, src_page(key)),
+            Fraction = cat, cell) |>
+  pivot_wider(names_from = Fraction, values_from = cell) |>
+  kable(escape = FALSE, align = c("l", rep("r", length(frac_label))))
+```
+
+```{r}
+#| include: false
+one_frac <- source_fractions |>
+  filter(pct_of_source >= 99) |>
+  mutate(source = factor(source, levels = src_levels)) |>
+  arrange(source)
+```
+
+```{r}
+#| output: asis
+if (nrow(one_frac))
+  cat(sprintf("%s work in one fraction only. The others mix two or three, and every table on this site that touches grain size keeps the fractions apart rather than pooling them, because a bulk sample and a sieved one taken from the same seabed are not the same measurement.\n",
+              paste(one_frac$source, collapse = " and ")))
+```
+
+## Aluminium, iron and organic carbon
+
+None of these three is a measurand of this study. Aluminium is the grain-size
+normaliser an enrichment factor is built on, iron carries much the same signal but
+never enters a verdict here, and organic carbon binds metals and is read beside a
+concentration. What matters is not how many of them an archive publishes but how
+many of its reported measurements have one beside them, on the same sample and the
+same fraction. That is what the shares below are.
+
+```{r}
+source_extras |>
+  mutate(cell = ifelse(in_archive, sprintf("%.1f%%", pct_paired), "-"),
+         name = factor(name, levels = unique(name)),
+         source = factor(source, levels = src_levels)) |>
+  arrange(source, name) |>
+  transmute(Source = sprintf("[%s](%s)", source, src_page(key)),
+            Parameter = name, cell) |>
+  pivot_wider(names_from = Parameter, values_from = cell) |>
+  kable(escape = FALSE, align = c("l", "r", "r", "r"))
+```
+
+```{r}
+#| include: false
+alu <- source_extras |> filter(symbol == "AL") |> arrange(desc(pct_paired))
+```
+
+The spread in the aluminium column is the single widest gap between these five
+archives: `r alu$source[1]` pairs `r sprintf("%.1f%%", alu$pct_paired[1])` of what
+it reports with an aluminium, `r alu$source[nrow(alu)]` only
+`r sprintf("%.1f%%", alu$pct_paired[nrow(alu)])`. An enrichment factor cannot be
+computed without one, so that column is a ceiling on how much of each archive can
+ever carry an enrichment-based verdict. It is also what sits behind the
+classifiable share on
+[How a pristine sample is decided](methods-pristine.qmd): nearly all the sampling
+close to a fish farm comes from the archive in this table with the least
+aluminium beside it.
+
 ## How much survives each step
 
 Every archive loses data, and the shape of the loss is the interesting part. The
@@ -130,15 +202,19 @@ closest to the measurement.
 ## Where each one sampled
 
 One cell is 0.1 degrees, roughly 11 km, the same grid the element maps use.
-Colour is the archive, and size is how many sites the cell holds. Nothing here is
-a concentration: this map answers where the sampling happened, not what was found.
+Colour is the archive, and size is how many sites the cell holds. The fraction
+control narrows it to the cells where that fraction was actually sampled, which is
+how the sieved and unsieved parts of this study can be seen apart. Nothing here is
+a concentration: this map answers where and how the sampling happened, not what
+was found.
 
 ```{r}
 #| include: false
 smap <- read.csv(file.path(sdir, "summary_source_map.csv"),
                  stringsAsFactors = FALSE)
 smap <- smap[, c("source", "key", "lat", "lon", "n_sites", "n", "n_elements",
-                 "year_min", "year_max", "depth_p50")]
+                 "year_min", "year_max", "depth_p50",
+                 "n_bulk", "n_sieved63", "n_sieved20")]
 ojs_define(srcmap = smap)
 ojs_define(src_order = data.frame(source = unname(src_levels),
                                   key = names(src_levels),
@@ -168,7 +244,19 @@ viewof shown = Inputs.checkbox(new Map(srcs.map(o => [o.source, o.source])),
 
 ```{ojs}
 //| echo: false
-cells = allcells.filter(d => shown.includes(d.source))
+// A filter rather than a second colour: colour already means the archive here,
+// and a cell shown under one fraction is the same cell, not a recount. The
+// counts in the popup are the whole cell, as they are everywhere else.
+viewof frac = Inputs.radio(new Map([["Any fraction", "any"], ["Bulk", "n_bulk"],
+                                    ["Sieved <63 um", "n_sieved63"],
+                                    ["Sieved <20 um", "n_sieved20"]]),
+                           { value: "any", label: "Fraction" })
+```
+
+```{ojs}
+//| echo: false
+cells = allcells.filter(d => shown.includes(d.source) &&
+                            (frac === "any" || d[frac] > 0))
 colour_of = new Map(srcs.map(o => [o.source, o.colour]))
 ```
 
@@ -211,6 +299,11 @@ srcMapDiv = {
   });
   new HomeControl().addTo(map);
 
+  // What the cell holds in each fraction, in every popup, whichever filter is on.
+  const fracline = d => [["n_bulk", "bulk"], ["n_sieved63", "sieved <63 um"],
+                         ["n_sieved20", "sieved <20 um"]]
+    .filter(([k]) => d[k] > 0).map(([k, l]) => `${l} ${d[k]}`).join(", ");
+
   // Drawn in reverse order of size so the sparse archives are not buried under
   // the dense ones: 4Demon has 25 cells against ICES-DOME's 2 679.
   const order = srcs.map(o => o.source)
@@ -230,7 +323,8 @@ srcMapDiv = {
         `<b>${s}</b><br/>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}` +
         `<br/>${d.n} measurements, ${d.n_elements} element${d.n_elements === 1 ? "" : "s"}` +
         `<br/>${d.year_min} to ${d.year_max}` +
-        (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`)
+        (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`) +
+        `<br/>${fracline(d)}`
       ).addTo(map);
     }
   }
@@ -243,7 +337,8 @@ srcMapDiv = {
       `<div class="legend-row"><span class="legend-swatch" ` +
       `style="background:${colour_of.get(s)}"></span>${s}</div>`
     ).join("") +
-    `<div class="legend-note">Cells are 0.1 degrees. Size is the number of sites.</div>`;
+    `<div class="legend-note">Cells are 0.1 degrees. Size is the number of sites. ` +
+    `A fraction filter shows the cells that hold at least one measurement in it.</div>`;
     return box;
   };
   legend.addTo(map);

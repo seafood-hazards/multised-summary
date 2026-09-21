@@ -12,6 +12,9 @@ s_fl  <- source_flow[source_flow$key == SRC, ]
 s_fl  <- s_fl[order(match(s_fl$stage, names(stage_label))), ]
 s_rm  <- source_removals[source_removals$key == SRC, ]
 s_rm  <- s_rm[order(match(s_rm$reason, removal_order)), ]
+s_fr  <- source_fractions[source_fractions$key == SRC, ]
+s_fr  <- s_fr[order(match(s_fr$cat, frac_order)), ]
+s_ex  <- source_extras[source_extras$key == SRC, ]
 
 s_has    <- s_el[s_el$in_archive, ]
 s_missing <- s_el[!s_el$in_archive, ]
@@ -81,6 +84,92 @@ if (nrow(wh)) {
               sentence(tolower(and_list(elem_name[as.character(wh$symbol)]))),
               if (nrow(wh) == 1) "is" else "are"))
 }
+```
+
+## Which fraction of the sediment it measured
+
+Grain size is the largest single control on a trace-element concentration: the
+fine grains carry most of the metal, so a sieved sample and an unsieved one taken
+from the same seabed are not the same measurement. Which fraction an archive works
+in is part of what it is, and it is why this site reports bulk and the two
+standard sieved fractions separately instead of pooling them.
+
+```{r}
+s_fr |>
+  filter(cat != "other" | n > 0) |>
+  transmute(Fraction = frac_label[cat],
+            Measurements = ifelse(n > 0, format(n, big.mark = " "), "-"),
+            Share = ifelse(n > 0, sprintf("%.1f%%", pct_of_source), "-"),
+            Sites = ifelse(n > 0, format(n_sites, big.mark = " "), "-"),
+            Elements = ifelse(n > 0, as.character(n_elements), "-"),
+            Years = ifelse(n > 0 & !is.na(year_min),
+                           paste0(year_min, " to ", year_max), "-"),
+            `What it is` = what) |>
+  kable(align = c("l", rep("r", 5), "l"))
+```
+
+```{r}
+#| output: asis
+# Which fraction this archive works in is a fact about the archive, so it is read
+# off the shares rather than asserted per source in the text.
+std <- s_fr[s_fr$cat != "other", ]
+std <- std[order(-std$n), ]
+top <- std[1, ]
+rest <- std[std$n > 0, ][-1, , drop = FALSE]
+cat(if (top$pct_of_source >= 99)
+      sprintf("Effectively everything this archive reports is %s, so nothing on this page mixes fractions.\n\n",
+              tolower(frac_label[top$cat]))
+    else sprintf("Most of it is %s (%.0f in every hundred), and it also reports %s. They are kept apart everywhere on this site, because a background estimated on one fraction does not transfer to another.\n\n",
+                 tolower(frac_label[top$cat]), top$pct_of_source,
+                 tolower(and_list(unname(frac_label[rest$cat])))))
+
+oth <- s_fr[s_fr$cat == "other", ]
+if (nrow(oth) && oth$n > 0)
+  cat(sprintf("A further %s measurements (%.1f%%) sit in a fraction this study does not pool with the three above. They are in the archive and in the database, and they are not reported on this site, because there are too few of them anywhere to estimate anything from.\n\n",
+              format(oth$n, big.mark = " "), oth$pct_of_source))
+
+cat("A site sampled in two fractions is counted in both rows, so the site column is not a total.\n")
+```
+
+## Aluminium, iron and organic carbon
+
+None of these three is something this study measures. They are what makes a
+measurement readable: aluminium is the grain-size normaliser an enrichment factor
+is built on, iron carries much the same signal but can never enter a verdict here,
+and organic carbon binds metals and is read beside a concentration. Coverage is
+the whole question, so coverage is all that is shown.
+
+```{r}
+s_ex |>
+  transmute(Parameter = name,
+            `In the archive` = ifelse(in_archive, format(n_slim, big.mark = " "), "-"),
+            Sites = ifelse(in_archive, format(n_sites, big.mark = " "), "-"),
+            `Measurements paired` = ifelse(in_archive,
+                                           format(n_paired, big.mark = " "), "-"),
+            Share = ifelse(in_archive, sprintf("%.1f%%", pct_paired), "-"),
+            `What it is for` = what) |>
+  kable(align = c("l", rep("r", 4), "l"))
+```
+
+**In the archive** counts the archive's own measurements of that parameter.
+**Measurements paired** counts something else: the target measurements on this site
+that have one of them beside them, on the same sample and the same fraction. One
+aluminium measurement can serve all seven targets taken from the same sample, so
+the second column is not a subset of the first and can be larger.
+
+```{r}
+#| output: asis
+al <- s_ex[s_ex$symbol == "AL", ]
+cat(sprintf("%s of what this site reports from this archive has an aluminium measured beside it, which is the ceiling on how much of it could ever carry an enrichment factor. %s See [How a pristine sample is decided](methods-pristine.qmd).\n\n",
+            sprintf("%.1f%%", al$pct_paired),
+            if (al$pct_paired >= 60)
+              "Where one is actually published is a narrower question again, and depends on the element and on the fraction."
+            else "Nothing later in the pipeline can lift it: without an aluminium on the same sample and the same fraction there is nothing to normalise against."))
+
+absent <- s_ex[!s_ex$in_archive, ]
+if (nrow(absent))
+  cat(sprintf("This archive reports no %s at all.\n",
+              tolower(and_list(absent$name))))
 ```
 
 ## How much survives each step
@@ -169,15 +258,25 @@ if (!is.na(comb) && comb > rej)
 #| include: false
 sm <- read.csv(file.path(sdir, "summary_source_map.csv"), stringsAsFactors = FALSE)
 sm <- sm[sm$key == SRC, c("lat", "lon", "n_sites", "n", "n_elements",
-                          "year_min", "year_max", "depth_p50")]
+                          "year_min", "year_max", "depth_p50",
+                          "n_bulk", "n_sieved63", "n_sieved20", "frac_top")]
 ojs_define(onemap = sm)
+# The fraction key, so the map can be coloured by what was sampled as well as by
+# how much of it. Only the fractions this archive actually worked in are passed,
+# which is also what the legend then lists.
+fr_seen <- intersect(cat_order, unique(sm$frac_top))
+ojs_define(fraclv = data.frame(cat = fr_seen,
+                               label = unname(frac_label[fr_seen]),
+                               colour = unname(frac_palette[fr_seen]),
+                               stringsAsFactors = FALSE))
 lat_lo <- min(sm$lat); lat_hi <- max(sm$lat)
 depth_mid <- stats::median(sm$depth_p50, na.rm = TRUE)
 ```
 
 One cell is 0.1 degrees, roughly 11 km, the same grid the element maps use.
-Colour is sampling effort and never concentration: this map answers where this
-archive worked, not what was found there. Its cells run from
+Colour is sampling effort, or the fraction that was sampled, and never a
+concentration: this map answers where and how this archive worked, not what was
+found there. Its cells run from
 `r sprintf("%.1f", lat_lo)` to `r sprintf("%.1f", lat_hi)` degrees north, and the
 middle cell sits at
 `r if (is.na(depth_mid)) "an unrecorded depth" else paste0(round(depth_mid), " m")`.
@@ -190,14 +289,20 @@ middle cell sits at
 //| echo: false
 L = require("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
 cells = transpose(onemap)
+fracs = transpose(fraclv)
 ```
 
 ```{ojs}
 //| echo: false
-// Four ways of asking how much work happened in a cell. None of them is a
-// concentration, which is the point: the element pages own those scales.
+// Four ways of asking how much work happened in a cell, and one asking what kind
+// of work it was. None of them is a concentration, which is the point: the
+// element pages own those scales.
+// The fraction option is offered only where there is more than one fraction to
+// show: an archive that only ever sampled bulk would get a one-colour map and a
+// control that does nothing.
 layer_opts = [["Sites", "n_sites"], ["Measurements", "n"],
               ["Elements measured", "n_elements"], ["Median depth (m)", "depth_p50"]]
+  .concat(fracs.length > 1 ? [["Fraction sampled", "frac_top"]] : [])
 viewof layer = Inputs.radio(new Map(layer_opts),
                             { value: "n_sites", label: "Colour by" })
 layer_name = (layer_opts.find(o => o[1] === layer) ?? ["", ""])[0]
@@ -243,36 +348,55 @@ srcMapDiv = {
   });
   new HomeControl().addTo(map);
 
+  // The fraction layer is a category rather than an amount, so it takes its own
+  // colours and its own legend. Everything else is a count and shares one ramp.
+  const PLAIN = "#9e9e9e";
+  const catg = layer === "frac_top";
+  const fracColour = new Map(fracs.map(o => [o.cat, o.colour]));
+  const fracLabel = new Map(fracs.map(o => [o.cat, o.label]));
+
   // Scaled on this archive's own cells, and clipped at the 5th and 95th
   // percentile so one dense cell does not flatten the rest. The legend says so.
-  const vals = cells.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
+  const vals = catg ? []
+    : cells.map(d => d[layer]).filter(v => v !== null && !isNaN(v));
   const sorted = vals.slice().sort((a, b) => a - b);
   const q = p => sorted[Math.floor(p * (sorted.length - 1))];
   const lo = q(0.05), hi = q(0.95);
-  const ramp = d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]);
-  const PLAIN = "#9e9e9e";
   // A measure this archive never recorded (depth, for one that reports none)
   // leaves nothing to scale. The cells are still places it sampled, so they are
   // drawn flat rather than dropped, and the legend says what is missing.
   const scaled = vals.length > 0;
+  const ramp = scaled
+    ? d3.scaleSequential(d3.interpolateViridis).domain([lo, hi]) : null;
+  const colourOf = d => catg ? (fracColour.get(d.frac_top) ?? PLAIN)
+                             : (scaled ? ramp(d[layer]) : PLAIN);
+  // What a cell holds in each fraction, in every popup: the colour of a mixed
+  // cell is the fraction with the most measurements in it, and this is what that
+  // call was made on.
+  const fracline = d => [["n_bulk", "bulk"], ["n_sieved63", "sieved <63 um"],
+                         ["n_sieved20", "sieved <20 um"]]
+    .filter(([k]) => d[k] > 0).map(([k, l]) => `${l} ${d[k]}`).join(", ");
 
-  const drawn = cells.filter(d => d[layer] !== null && !isNaN(d[layer]));
+  const drawn = cells.filter(d => catg || (d[layer] !== null && !isNaN(d[layer])));
   // biggest last, so a cell worth seeing is not painted over by a quiet one
-  drawn.sort((a, b) => a[layer] - b[layer]);
+  drawn.sort((a, b) => catg ? a.n - b.n : a[layer] - b[layer]);
   for (const d of drawn) {
     L.circleMarker([d.lat, d.lon], {
       radius: 4, weight: 0.4, color: "#33333355",
-      fillColor: scaled ? ramp(d[layer]) : PLAIN, fillOpacity: 0.85
+      fillColor: colourOf(d), fillOpacity: 0.85
     }).bindPopup(
       `<b>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}</b>` +
       `<br/>${d.n} measurements, ${d.n_elements} element${d.n_elements === 1 ? "" : "s"}` +
       `<br/>${d.year_min} to ${d.year_max}` +
-      (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`)
+      (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`) +
+      `<br/>${fracline(d)}`
     ).addTo(map);
   }
   // cells the chosen measure says nothing about are still places this archive
-  // sampled, so they stay on the map in one flat colour rather than vanishing
-  for (const d of cells.filter(d => d[layer] === null || isNaN(d[layer]))) {
+  // sampled, so they stay on the map in one flat colour rather than vanishing.
+  // The fraction layer has no such cells: every cell was sampled in some
+  // fraction, and isNaN would call every one of its labels missing.
+  for (const d of (catg ? [] : cells.filter(d => d[layer] === null || isNaN(d[layer])))) {
     L.circleMarker([d.lat, d.lon], {
       radius: 2.5, weight: 0, fillColor: PLAIN, fillOpacity: 0.3
     }).bindPopup(`<b>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}</b><br/>No ${layer_name.toLowerCase()} recorded`)
@@ -286,6 +410,17 @@ srcMapDiv = {
     const box = L.DomUtil.create("div", "legend");
     const bar = scaled ? d3.range(0, 1.001, 0.05)
       .map(t => ramp(lo + t * (hi - lo))).join(", ") : "";
+    if (catg) {
+      box.innerHTML =
+        `<div class="legend-title">${layer_name}</div>` +
+        `<div class="legend-sub">per 0.1 degree cell</div>` +
+        fracs.map(o =>
+          `<div class="legend-row"><span class="legend-swatch" ` +
+          `style="background:${o.colour}"></span>${o.label}</div>`).join("") +
+        `<div class="legend-note">A cell takes the colour of the fraction it holds ` +
+        `most measurements in. The popup gives the counts.</div>`;
+      return box;
+    }
     box.innerHTML =
       `<div class="legend-title">${layer_name}</div>` +
       `<div class="legend-sub">per 0.1 degree cell</div>` +

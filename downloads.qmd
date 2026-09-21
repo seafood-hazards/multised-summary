@@ -75,6 +75,7 @@ tbl <- data.frame(
            "summary_gradient.csv", "summary_controls.csv", "summary_sources.csv",
            "summary_flow.csv", "summary_source_elements.csv",
            "summary_source_flow.csv", "summary_source_removals.csv",
+           "summary_source_fractions.csv", "summary_source_extras.csv",
            "summary_source_map.csv", "summary_map_grid.csv",
            "summary_map_sites.csv", "summary_meta.csv"),
   Contents = c(
@@ -93,7 +94,9 @@ tbl <- data.frame(
     "Per source and target element: what the archive carries, and what it does not",
     "Per source: the same pipeline stages, one archive at a time",
     "Per source: why the measurements that leave at the cleaning step leave",
-    "A 0.1 degree grid per source: where each archive sampled, and how much",
+    "Per source and fraction: bulk, sieved <63 um, sieved <20 um, and the rest",
+    "Per source: aluminium, iron and organic carbon, and how much of the archive they pair with",
+    "A 0.1 degree grid per source: where each archive sampled, how much, and in which fraction",
     "A 0.1 degree grid of median concentration and Igeo: the map layer",
     "The same at full site resolution",
     "Provenance: which database, built when, with which rules"
