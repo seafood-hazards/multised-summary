@@ -1,0 +1,18 @@
+---
+title: "ICES-DOME"
+subtitle: "The international aggregator: the broadest reach, and the most overlap"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SRC <- "ices-dome"
+```
+
+{{< include _source-body.qmd >}}
+
+---
+
+What was made of these measurements, on the refined site:
+[detailed analysis site](`r REFINED`), a separate site that opens in a new tab.

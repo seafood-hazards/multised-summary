@@ -31,15 +31,70 @@ controls <- rd("summary_controls.csv")
 sources  <- rd("summary_sources.csv")
 flow     <- rd("summary_flow.csv")
 smeta    <- rd("summary_meta.csv")
+source_elements <- rd("summary_source_elements.csv")
+source_flow     <- rd("summary_source_flow.csv")
+source_removals <- rd("summary_source_removals.csv")
 
 elem_levels <- c("CU", "ZN", "CO", "MN", "MO", "SE", "I")
 cat_label <- c(bulk = "Bulk", sieved63 = "Sieved <63 um", sieved20 = "Sieved <20 um")
 cat_order <- c("bulk", "sieved63", "sieved20")
 
+# The five archives, in the order the project lists them. The key is what the
+# pipeline calls a source and what its own repositories are named; the label is
+# what the merged and refined databases carry and what every page prints.
+src_keys   <- c("mareano", "vannmiljo", "ices-dome", "mudab", "4demon")
+src_levels <- c("Mareano", "Vannmilj\u00f8", "ICES-DOME", "MUDAB", "4Demon")
+names(src_levels) <- src_keys
+src_page <- function(key) sprintf("source-%s.qmd", key)
+# One colour per archive, used by the comparison chart and the overlay map so the
+# two are read with the same key. Paul Tol's bright set: it keeps five categories
+# apart in both common forms of colour blindness.
+src_palette <- c("#4477AA", "#EE6677", "#228833", "#CCBB44", "#AA3377")
+names(src_palette) <- src_levels
+# Each archive also has a site of its own, showing the parse before anything was
+# harmonised. They are separate sites and open in a new tab, like every other
+# link that leaves here.
+src_pilot <- function(key)
+  sprintf("https://seafood-hazards.github.io/%s-pilot/", key)
+
+# What each archive is, in one paragraph. This is description rather than result,
+# so it is written here rather than read from a CSV: the numbers beside it all
+# come from summary_source_*.csv, and nothing in this text restates one.
+src_blurb <- c(
+  mareano = "Mareano is a Norwegian seabed mapping programme. Its samples come from research cruises rather than from routine monitoring, and that shows in the shape of the data: comparatively few sites, each measured for several elements, in open water rather than along the coast.",
+  vannmiljo = "Vannmilj\u00f8 is Norway's national environmental database. It pools reporting from many programmes, including the monitoring required around fish farms, and it is where most of what this study can say about aquaculture pressure comes from.",
+  "ices-dome" = "ICES-DOME is the international data centre for the North Atlantic and its shelf seas. It aggregates national reporting rather than collecting anything itself, which makes it the broadest of the five in both space and elements, and also the one most likely to hold a second copy of something a national archive already reported.",
+  mudab = "MUDAB is Germany's national marine environmental database, covering the German sectors of the North Sea and the Baltic.",
+  "4demon" = "4Demon is a Belgian compilation of measurements from the Belgian part of the North Sea, assembled from surveys that in several cases predate routine digital reporting. It is the smallest of the five and carries the shortest list of elements."
+)
+
+# Why a measurement leaves at the cleaning step, in the order clean step 2 applies
+# the rules. The order is fixed here rather than taken from the file, so a table
+# cannot silently reorder itself when the module's output does.
+removal_order <- c("outside_europe", "out_of_range", "invalid", "below_loq",
+                   "wet_weight", "source_qc", "combined")
+removal_label <- c(outside_europe = "Outside the study area",
+                   out_of_range   = "Out of plausible range",
+                   invalid        = "Marked unusable by the archive",
+                   below_loq      = "Below the limit of quantification",
+                   wet_weight     = "Reported on a wet-weight basis",
+                   source_qc      = "Failed the archive's own quality flag",
+                   combined       = "Combined with a repeat of the same sample")
+
+# The six rungs of the funnel, named as the Data Collection page numbers them.
+stage_label <- c(pilot = "1. Parse", slim = "2. Harmonise", clean = "3. Clean",
+                 merged = "4. Merge", refined = "5. Refine",
+                 analysed = "Reported on this site")
+
 # The database keys elements in upper case; chemistry writes them in title case.
 # Pages show the second and join on the first.
 sym_display <- c(CO = "Co", CU = "Cu", I = "I", MN = "Mn",
                  MO = "Mo", SE = "Se", ZN = "Zn")
+
+# The full name, for prose, where a bare symbol would read as a typo ("I is
+# carried by one archive"). Read from the elements table rather than restated.
+elem_name <- stats::setNames(elements$name[match(elem_levels, elements$symbol)],
+                             elem_levels)
 
 # Units. Every target is reported in mg/kg dry weight in the refined database.
 UNIT <- "mg/kg dry weight"

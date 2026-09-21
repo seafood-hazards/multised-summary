@@ -26,6 +26,21 @@ website:
             href: methods-pristine.qmd
           - text: "Aquaculture Pressure"
             href: methods-pressure.qmd
+      - text: "Sources"
+        menu:
+          - text: "All five sources at a glance"
+            href: sources.qmd
+          - text: "---"
+          - text: "Mareano"
+            href: source-mareano.qmd
+          - text: "Vannmiljø"
+            href: source-vannmiljo.qmd
+          - text: "ICES-DOME"
+            href: source-ices-dome.qmd
+          - text: "MUDAB"
+            href: source-mudab.qmd
+          - text: "4Demon"
+            href: source-4demon.qmd
       - text: "Results"
         menu:
           - text: "All elements at a glance"

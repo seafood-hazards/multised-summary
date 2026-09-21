@@ -1,0 +1,255 @@
+---
+title: "All five sources at a glance"
+subtitle: "What each archive brought, and how much of it survived"
+---
+
+{{< include _setup.qmd >}}
+
+Nothing here was collected for this study. Five public archives were read as they
+are published, and the measurements this site reports are what came through them.
+They are not interchangeable: they cover different seas, different decades and
+different elements, and they lose data at different stages and for different
+reasons.
+
+```{r}
+#| output: asis
+keyfig(
+  list(nrow(sources), "archives"),
+  list(format(sum(sources$n), big.mark = " "), "measurements reported"),
+  list(format(smeta$n_sites, big.mark = " "), "sites"),
+  list(paste0(min(sources$year_min), " to ", max(sources$year_max)), "sampling years")
+)
+```
+
+## What each one contributes
+
+```{r}
+sources |>
+  mutate(key = names(src_levels)[match(source, src_levels)],
+         source = factor(source, levels = src_levels)) |>
+  arrange(source) |>
+  transmute(Source = sprintf("[%s](%s)", source, src_page(key)),
+            Measurements = format(n, big.mark = " "),
+            Share = sprintf("%.1f%%", pct),
+            Sites = format(n_sites, big.mark = " "),
+            Datasets = n_datasets,
+            Elements = n_elements,
+            Years = paste0(year_min, " to ", year_max)) |>
+  kable(escape = FALSE)
+```
+
+```{r}
+#| output: asis
+top2 <- sources |> arrange(desc(pct)) |> head(2)
+cat(sprintf("%s and %s account for %.0f measurements in every hundred between them. That is worth holding on to when reading any pooled result, and it is why the element pages report censoring per source rather than only in total.\n",
+            top2$source[1], top2$source[2], sum(top2$pct)))
+```
+
+## Which elements each one carries
+
+Counts are the measurements this site reports. A dash means the archive carries
+no measurement of that element at all, which is a property of the archive and not
+something the pipeline did. Each source page carries the archive's own totals
+beside these.
+
+```{r}
+elem_cols <- elem_levels
+source_elements |>
+  mutate(cell = ifelse(in_archive, format(n_analysed, big.mark = " "), "-"),
+         symbol = factor(symbol, levels = elem_cols),
+         source = factor(source, levels = src_levels)) |>
+  arrange(source, symbol) |>
+  transmute(Source = sprintf("[%s](%s)", source, src_page(key)),
+            Element = sym_display[as.character(symbol)], cell) |>
+  pivot_wider(names_from = Element, values_from = cell) |>
+  kable(escape = FALSE, align = c("l", rep("r", length(elem_cols))))
+```
+
+```{r}
+#| include: false
+carried <- source_elements |>
+  group_by(symbol) |>
+  summarise(n_src = sum(in_archive),
+            who = paste(source[in_archive], collapse = " and "),
+            .groups = "drop")
+lone <- carried |> filter(n_src == 1)
+all_five <- carried |> filter(n_src == nrow(sources))
+```
+
+```{r}
+#| output: asis
+if (nrow(lone)) {
+  cat(sprintf(
+    "The gaps are not evenly spread. %s %s carried by one archive alone (%s), which is most of the reason %s never reaches a reportable number. %s %s carried by all five.\n",
+    paste(elem_name[as.character(lone$symbol)], collapse = " and "),
+    if (nrow(lone) == 1) "is" else "are",
+    paste(unique(lone$who), collapse = "; "),
+    if (nrow(lone) == 1) "it" else "they",
+    sub("^(.)", "\\U\\1", tolower(paste(elem_name[as.character(all_five$symbol)],
+                                         collapse = " and ")), perl = TRUE),
+    if (nrow(all_five) == 1) "is" else "are"))
+}
+```
+
+## How much survives each step
+
+Every archive loses data, and the shape of the loss is the interesting part. The
+same six steps are drawn for each, as a share of what the parse found.
+
+```{r}
+#| fig-height: 3.8
+#| fig-cap: "Target-element measurements surviving each step, as a share of what the parse found."
+source_flow |>
+  mutate(stage = factor(stage_label[stage], levels = unname(stage_label)),
+         source = factor(source, levels = src_levels)) |>
+  ggplot(aes(stage, pct_of_pilot, colour = source, group = source)) +
+  geom_line(linewidth = .7) +
+  geom_point(size = 1.8) +
+  scale_colour_manual(values = src_palette) +
+  scale_y_continuous(limits = c(0, 100),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x = NULL, y = "Surviving (%)", colour = NULL) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.major.x = element_blank(), legend.position = "top",
+        axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+```{r}
+#| include: false
+lost_merge <- source_flow |>
+  filter(stage == "merged", pct_of_prev < 99) |>
+  pull(source)
+```
+
+Only the cleaning step bites everywhere. The merge step is nearly free for three
+of the five and costs `r if (length(lost_merge)) paste(lost_merge, collapse = " and ") else "none of them"`
+a visible share, because that is where the same cruise reported into two archives
+is reduced to one copy, and the copy that is kept is the one from the archive
+closest to the measurement.
+
+## Where each one sampled
+
+One cell is 0.1 degrees, roughly 11 km, the same grid the element maps use.
+Colour is the archive, and size is how many sites the cell holds. Nothing here is
+a concentration: this map answers where the sampling happened, not what was found.
+
+```{r}
+#| include: false
+smap <- read.csv(file.path(sdir, "summary_source_map.csv"),
+                 stringsAsFactors = FALSE)
+smap <- smap[, c("source", "key", "lat", "lon", "n_sites", "n", "n_elements",
+                 "year_min", "year_max", "depth_p50")]
+ojs_define(srcmap = smap)
+ojs_define(src_order = data.frame(source = unname(src_levels),
+                                  key = names(src_levels),
+                                  colour = unname(src_palette[unname(src_levels)]),
+                                  stringsAsFactors = FALSE))
+```
+
+```{=html}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+```
+
+```{ojs}
+//| echo: false
+L = require("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
+allcells = transpose(srcmap)
+srcs = transpose(src_order)
+```
+
+```{ojs}
+//| echo: false
+// All five on at once is the default, because the question the map answers is
+// where they overlap and where only one archive has been.
+viewof shown = Inputs.checkbox(new Map(srcs.map(o => [o.source, o.source])),
+                               { value: srcs.map(o => o.source),
+                                 label: "Archives" })
+```
+
+```{ojs}
+//| echo: false
+cells = allcells.filter(d => shown.includes(d.source))
+colour_of = new Map(srcs.map(o => [o.source, o.colour]))
+```
+
+```{ojs}
+//| echo: false
+srcMapDiv = {
+  const div = html`<div id="map"></div>`;
+  yield div;
+  const map = L.map(div, { zoomControl: true });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 12
+  }).addTo(map);
+
+  // The home view is the extent of every archive, not of whatever is ticked, so
+  // turning one off does not move the map under the reader. The floor of 3 is
+  // the same one the element maps use: Mercator stretches the far north, and
+  // fitting 36 to 81 degrees honestly opens on a world map.
+  const lats = allcells.map(d => d.lat), lons = allcells.map(d => d.lon);
+  const home = L.latLngBounds([Math.min(...lats), Math.min(...lons)],
+                              [Math.max(...lats), Math.max(...lons)]);
+  const goHome = () => {
+    map.invalidateSize();
+    map.fitBounds(home, { padding: [24, 24], maxZoom: 6 });
+    if (map.getZoom() < 3) map.setView(home.getCenter(), 3);
+  };
+  goHome();
+
+  const HomeControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd() {
+      const btn = L.DomUtil.create("a", "leaflet-home-button");
+      btn.href = "#";
+      btn.title = "Reset the view";
+      btn.setAttribute("aria-label", "Reset the view");
+      btn.innerHTML = '<i class="bi bi-house-door" aria-hidden="true"></i>';
+      L.DomEvent.on(btn, "click", e => { L.DomEvent.stop(e); goHome(); });
+      return btn;
+    }
+  });
+  new HomeControl().addTo(map);
+
+  // Drawn in reverse order of size so the sparse archives are not buried under
+  // the dense ones: 4Demon has 25 cells against ICES-DOME's 2 679.
+  const order = srcs.map(o => o.source)
+    .filter(s => shown.includes(s))
+    .sort((a, b) => cells.filter(d => d.source === b).length -
+                    cells.filter(d => d.source === a).length);
+
+  for (const s of order) {
+    for (const d of cells.filter(d => d.source === s)) {
+      L.circleMarker([d.lat, d.lon], {
+        radius: Math.min(7, 2 + Math.sqrt(d.n_sites)),
+        color: colour_of.get(s),
+        weight: 0.5,
+        fillColor: colour_of.get(s),
+        fillOpacity: 0.65
+      }).bindPopup(
+        `<b>${s}</b><br/>${d.n_sites} site${d.n_sites === 1 ? "" : "s"}` +
+        `<br/>${d.n} measurements, ${d.n_elements} element${d.n_elements === 1 ? "" : "s"}` +
+        `<br/>${d.year_min} to ${d.year_max}` +
+        (d.depth_p50 === null || isNaN(d.depth_p50) ? "" : `<br/>median depth ${d.depth_p50} m`)
+      ).addTo(map);
+    }
+  }
+
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = () => {
+    // the element maps' own legend classes, so the two read as one object
+    const box = L.DomUtil.create("div", "legend");
+    box.innerHTML = '<div class="legend-title">Archive</div>' + order.map(s =>
+      `<div class="legend-row"><span class="legend-swatch" ` +
+      `style="background:${colour_of.get(s)}"></span>${s}</div>`
+    ).join("") +
+    `<div class="legend-note">Cells are 0.1 degrees. Size is the number of sites.</div>`;
+    return box;
+  };
+  legend.addTo(map);
+}
+```
+
+Where the cells sit on top of each other is where two archives sampled the same
+water, and that is what the merge step has to resolve. The North Sea and the
+Skagerrak are the crowded part; the Barents Sea is almost entirely one archive.

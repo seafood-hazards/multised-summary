@@ -12,15 +12,20 @@ quality conventions. None of them was designed to be combined with the others.
 
 ```{r}
 sources |>
-  transmute(Source = source,
+  mutate(key = names(src_levels)[match(source, src_levels)]) |>
+  transmute(Source = sprintf("[%s](%s)", source, src_page(key)),
             Measurements = format(n, big.mark = "\u00a0"),
             `Share` = sprintf("%.1f%%", pct),
             Sites = format(n_sites, big.mark = "\u00a0"),
             Datasets = n_datasets,
             Elements = n_elements,
             Years = paste0(year_min, " to ", year_max)) |>
-  kable()
+  kable(escape = FALSE)
 ```
+
+Each name links to a page of its own: what that archive carries, what it lacks,
+how much of it survives each step below and where it sampled. The overview is
+[All five sources at a glance](sources.qmd).
 
 ## The five steps
 
@@ -62,6 +67,12 @@ About `r drop_pct` per cent of the harmonised measurements do not reach the fina
 reported set. That is the point of the pipeline rather than a loss: the rows
 removed are failed quality checks, values below the limit of quantification,
 elements outside this study, and the same sample reported twice by two archives.
+
+The counts above are every parameter the pipeline carries, pooled over the five
+archives. Counted one archive at a time, and restricted to the seven target
+elements, the same steps look quite different from each other: see
+[All five sources at a glance](sources.qmd), which also names the reason behind
+every row that leaves.
 
 ## What had to be made comparable
 

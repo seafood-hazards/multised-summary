@@ -1,0 +1,18 @@
+---
+title: "4Demon"
+subtitle: "The Belgian compilation: the smallest archive, and only two elements"
+---
+
+{{< include _setup.qmd >}}
+
+```{r}
+#| include: false
+SRC <- "4demon"
+```
+
+{{< include _source-body.qmd >}}
+
+---
+
+What was made of these measurements, on the refined site:
+[detailed analysis site](`r REFINED`), a separate site that opens in a new tab.
